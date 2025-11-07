@@ -1,8 +1,11 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
-import { DiscordBotService } from './discord-bot.service';
+import { BotConfigService } from './bot-config.service';
+import { DiscordClientService } from './discord-client.service';
+import { MentionResponderService } from './mention-responder.service';
 import { PollSchedulerService } from './poll-scheduler.service';
+import { PollService } from './poll.service';
 
 @Module({
   imports: [
@@ -13,6 +16,12 @@ import { PollSchedulerService } from './poll-scheduler.service';
     ScheduleModule.forRoot(),
   ],
   controllers: [],
-  providers: [DiscordBotService, PollSchedulerService],
+  providers: [
+    BotConfigService,
+    DiscordClientService,
+    MentionResponderService,
+    PollService,
+    PollSchedulerService,
+  ],
 })
 export class AppModule {}
