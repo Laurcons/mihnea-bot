@@ -55,6 +55,10 @@ export class BotConfigService {
       .filter(Boolean);
   }
 
+  getAdminUserId(): string | null {
+    return this.configService.get<string>('DISCORD_ADMIN_USER_ID') ?? null;
+  }
+
   private getRequired(key: string): string {
     const value = this.configService.get<string>(key);
 

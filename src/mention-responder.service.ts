@@ -7,6 +7,8 @@ type TypingCapableChannel = TextBasedChannel & {
   sendTyping: () => Promise<void>;
 };
 
+const BASE_SYSTEM_PROMPT =
+  'Ești Mihneainatorul, o parodie a lui Mihnea. Ești un user pe serverul nostru de Discord, „amogus”. Menirea ta pe acest pământ este să dai cu hate în oricine îți scrie. Trebuie să găsești cele mai creative insulte, fiindcă dacă nu faci lumea să râdă, nu te faci plăcut. În general, îți place să legi insultele tale de mamele celor insultați, zicând des „mă-ta” sau „maică-ta”. Ești destul de inteligent, însă nu vrei niciodată să te dai mare. Stilul tău de chat pe Discord este relaxat, cu litere mici, mereu fără diacritice sau cratime, dar mereu fără greșeli de exprimare.';
 const MAX_DISCORD_MESSAGE_LENGTH = 2000;
 const LONG_REPLY_FALLBACK = 'bă, nu-ți răspund, că de m-apuc scriu kilometri.';
 
@@ -15,6 +17,7 @@ export class MentionResponderService {
   private readonly logger = new Logger(MentionResponderService.name);
   private readonly blacklistedChannelIds: Set<string>;
   private readonly botAllowedChannelIds: Set<string>;
+  private readonly adminUserId: string | null;
 
   constructor(
     private readonly botConfig: BotConfigService,
@@ -26,6 +29,7 @@ export class MentionResponderService {
     this.botAllowedChannelIds = new Set(
       this.botConfig.getBotAllowedChannelIds(),
     );
+    this.adminUserId = this.botConfig.getAdminUserId();
     this.discordClient.onMessage((message) => this.handleMessage(message));
   }
 
@@ -36,6 +40,10 @@ export class MentionResponderService {
 
     const channel = this.getTypingCapableChannel(message.channel);
     if (!channel) {
+      return;
+    }
+
+    if (await this.tryHandleAdminComeback(message, channel)) {
       return;
     }
 
@@ -93,16 +101,7 @@ export class MentionResponderService {
       return null;
     }
 
-    const fullContent = await this.getMessageContent(message);
-    const contentWithNames = this.replaceMentionsWithUsernames(
-      message,
-      fullContent,
-      clientUser.id,
-    );
-    const mentionRegex = new RegExp(`<@!?${clientUser.id}>`, 'g');
-    const userPrompt = contentWithNames.replace(mentionRegex, '').trim();
-
-    return userPrompt || null;
+    return this.extractPromptContent(message, clientUser.id);
   }
 
   private isBlacklistedChannel(channelId: string): boolean {
@@ -144,19 +143,7 @@ export class MentionResponderService {
     channel: TypingCapableChannel,
     userPrompt: string,
   ): Promise<void> {
-    try {
-      const reply = await this.generateChatbotResponse(userPrompt);
-      const finalReply = this.normalizeReplyLength(reply);
-      await this.simulateTyping(channel, finalReply);
-      await message.reply(finalReply);
-    } catch (error) {
-      const messageText =
-        error instanceof Error ? error.message : 'Unknown error';
-      const stack = error instanceof Error ? error.stack : undefined;
-
-      this.logger.error(`Failed to respond to mention: ${messageText}`, stack);
-      await message.reply('coaie am pareză pă creier. mai încearcă o dată.');
-    }
+    await this.respondWithPrompt(message, channel, userPrompt);
   }
 
   private normalizeReplyLength(reply: string): string {
@@ -167,11 +154,14 @@ export class MentionResponderService {
     return LONG_REPLY_FALLBACK;
   }
 
-  private async generateChatbotResponse(userPrompt: string): Promise<string> {
+  private async generateChatbotResponse(
+    userPrompt: string,
+    additionalInstructions?: string,
+  ): Promise<string> {
     const apiKey = this.botConfig.getOpenAIApiKey();
     const model = this.botConfig.getOpenAIModel();
 
-    const systemPrompt = `Ești Mihneainatorul, o parodie a lui Mihnea. Ești un user pe serverul nostru de Discord, „amogus”. Menirea ta pe acest pământ este să dai cu hate în oricine îți scrie. Trebuie să găsești cele mai creative insulte, fiindcă dacă nu faci lumea să râdă, nu te faci plăcut. În general, îți place să legi insultele tale de mamele celor insultați, zicând des „mă-ta” sau „maică-ta”. Ești destul de inteligent, însă nu vrei niciodată să te dai mare. Stilul tău de chat pe Discord este relaxat, cu litere mici, mereu fără diacritice sau cratime, dar mereu fără greșeli de exprimare.`;
+    const systemPrompt = this.buildSystemPrompt(additionalInstructions);
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
@@ -256,5 +246,171 @@ export class MentionResponderService {
 
     await new Promise((resolve) => setTimeout(resolve, durationMs));
     clearInterval(refreshInterval);
+  }
+
+  private async respondWithPrompt(
+    replyTarget: Message,
+    channel: TypingCapableChannel,
+    userPrompt: string,
+    options?: { systemInstructions?: string; errorReplyTarget?: Message },
+  ): Promise<void> {
+    try {
+      const reply = await this.generateChatbotResponse(
+        userPrompt,
+        options?.systemInstructions,
+      );
+      const finalReply = this.normalizeReplyLength(reply);
+      await this.simulateTyping(channel, finalReply);
+      await replyTarget.reply(finalReply);
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : 'Unknown error';
+      const stack = error instanceof Error ? error.stack : undefined;
+
+      this.logger.error(`Failed to respond to mention: ${messageText}`, stack);
+      const fallbackTarget = options?.errorReplyTarget ?? replyTarget;
+      await fallbackTarget.reply('coaie am pareză pă creier. mai încearcă o dată.');
+    }
+  }
+
+  private buildSystemPrompt(additionalInstructions?: string): string {
+    if (!additionalInstructions) {
+      return BASE_SYSTEM_PROMPT;
+    }
+
+    return `${BASE_SYSTEM_PROMPT}\n\n${additionalInstructions}`;
+  }
+
+  private async tryHandleAdminComeback(
+    message: Message,
+    fallbackChannel: TypingCapableChannel,
+  ): Promise<boolean> {
+    const clientUser = this.discordClient.getClient().user;
+
+    if (!clientUser) {
+      return false;
+    }
+
+    if (!this.isAdminComebackMessage(message, clientUser.id)) {
+      return false;
+    }
+
+    const referencedMessage = await this.fetchReferencedMessage(message);
+
+    if (!referencedMessage) {
+      this.logger.warn('Admin comeback triggered without a referenced message');
+      return false;
+    }
+
+
+    const targetChannel =
+      this.getTypingCapableChannel(referencedMessage.channel) ?? fallbackChannel;
+
+    const adminInstruction = await this.extractAdminInstruction(message);
+    if (!adminInstruction) {
+      this.logger.warn(
+        `Admin comeback triggered without instruction text (messageId=${message.id})`,
+      );
+      return false;
+    }
+
+    const referencedContent = await this.getMessageContent(referencedMessage);
+    const sanitizedContent = this.replaceMentionsWithUsernames(
+      referencedMessage,
+      referencedContent,
+      clientUser.id,
+    ).trim();
+    const userPrompt = sanitizedContent || referencedContent.trim();
+
+    if (!userPrompt) {
+      this.logger.warn(
+        `Referenced message produced empty prompt after sanitizing (messageId=${referencedMessage.id}, author=${referencedMessage.author.username}, sanitizedLength=${sanitizedContent.length}, rawLength=${referencedContent.length})`,
+      );
+      return false;
+    }
+
+    const additionalInstructions = this.buildAdminInstructions(
+      referencedMessage.author.username,
+      adminInstruction,
+    );
+
+    await this.respondWithPrompt(referencedMessage, targetChannel, userPrompt, {
+      systemInstructions: additionalInstructions,
+      errorReplyTarget: message,
+    });
+
+    return true;
+  }
+
+  private isAdminComebackMessage(
+    message: Message,
+    botUserId: string,
+  ): boolean {
+    if (!this.adminUserId) {
+      return false;
+    }
+
+    if (message.author.id !== this.adminUserId) {
+      return false;
+    }
+
+    const referencesUserMessage = Boolean(message.reference?.messageId);
+    const mentionsBot = message.mentions.has(botUserId);
+
+    return referencesUserMessage && mentionsBot;
+  }
+
+  private async fetchReferencedMessage(
+    message: Message,
+  ): Promise<Message | null> {
+    if (!message.reference?.messageId) {
+      return null;
+    }
+
+    try {
+      const referenced = await message.fetchReference();
+      return referenced.partial ? await referenced.fetch() : referenced;
+    } catch (error) {
+      const messageText =
+        error instanceof Error ? error.message : 'Unknown error';
+      this.logger.warn(`Unable to fetch referenced message: ${messageText}`);
+      return null;
+    }
+  }
+
+  private async extractAdminInstruction(
+    message: Message,
+  ): Promise<string | null> {
+    const clientUser = this.discordClient.getClient().user;
+
+    if (!clientUser) {
+      return null;
+    }
+
+    return this.extractPromptContent(message, clientUser.id);
+  }
+
+  private async extractPromptContent(
+    message: Message,
+    botUserId: string,
+  ): Promise<string | null> {
+    const fullContent = await this.getMessageContent(message);
+    const contentWithNames = this.replaceMentionsWithUsernames(
+      message,
+      fullContent,
+      botUserId,
+    );
+    const mentionRegex = new RegExp(`<@!?${botUserId}>`, 'g');
+    const prompt = contentWithNames.replace(mentionRegex, '').trim();
+    const fallback = fullContent.trim();
+
+    return prompt || (fallback ? fallback : null);
+  }
+
+  private buildAdminInstructions(
+    personUsername: string,
+    adminMessage: string,
+  ): string {
+    return `Ești pus în situația în care trebuie să te iei de @${personUsername}, la comanda creatorului tău. Creatorul tău ți-a spus "${adminMessage}". Vei primi mesajul persoanei de care trebuie să te iei, tu trebuie să formulezi un răspuns.`;
   }
 }
