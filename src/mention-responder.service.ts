@@ -14,6 +14,7 @@ const LONG_REPLY_FALLBACK = 'bă, nu-ți răspund, că de m-apuc scriu kilometri
 export class MentionResponderService {
   private readonly logger = new Logger(MentionResponderService.name);
   private readonly blacklistedChannelIds: Set<string>;
+  private readonly botAllowedChannelIds: Set<string>;
 
   constructor(
     private readonly botConfig: BotConfigService,
@@ -21,6 +22,9 @@ export class MentionResponderService {
   ) {
     this.blacklistedChannelIds = new Set(
       this.botConfig.getBlacklistedChannelIds(),
+    );
+    this.botAllowedChannelIds = new Set(
+      this.botConfig.getBotAllowedChannelIds(),
     );
     this.discordClient.onMessage((message) => this.handleMessage(message));
   }
@@ -56,11 +60,13 @@ export class MentionResponderService {
       return false;
     }
 
-    if (message.author.bot) {
+    const channel = message.channel;
+
+    if (!channel?.isTextBased()) {
       return false;
     }
 
-    if (!message.channel?.isTextBased()) {
+    if (message.author.bot && !this.isBotAllowedChannel(channel.id)) {
       return false;
     }
 
@@ -101,6 +107,10 @@ export class MentionResponderService {
 
   private isBlacklistedChannel(channelId: string): boolean {
     return this.blacklistedChannelIds.has(channelId);
+  }
+
+  private isBotAllowedChannel(channelId: string): boolean {
+    return this.botAllowedChannelIds.has(channelId);
   }
 
   private async reactWithThumbsDown(message: Message): Promise<void> {

@@ -40,6 +40,21 @@ export class BotConfigService {
       .filter(Boolean);
   }
 
+  getBotAllowedChannelIds(): string[] {
+    const raw = this.configService.get<string>(
+      'DISCORD_ALLOWED_BOT_CHANNEL_IDS',
+    );
+
+    if (!raw) {
+      return [];
+    }
+
+    return raw
+      .split(',')
+      .map((value) => value.trim())
+      .filter(Boolean);
+  }
+
   private getRequired(key: string): string {
     const value = this.configService.get<string>(key);
 
