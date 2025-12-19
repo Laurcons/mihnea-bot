@@ -12,10 +12,9 @@ export class PollSchedulerService implements OnModuleInit {
     // this.handleDailyPoll();
   }
 
-  // Run every day at 12:00
-  @Cron('0 12 * * *')
+  @Cron('0 18 * * *')
   async handleDailyPoll() {
-    this.logger.log('Starting daily poll at 12:00');
+    this.logger.log('Starting daily poll at 18:00');
     try {
       await this.pollService.sendDailyPoll();
     } catch (error) {
