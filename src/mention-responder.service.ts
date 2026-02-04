@@ -18,6 +18,7 @@ export class MentionResponderService {
   private readonly blacklistedChannelIds: Set<string>;
   private readonly botAllowedChannelIds: Set<string>;
   private readonly adminUserId: string | null;
+  private readonly usersBeingProcessed: Set<string> = new Set();
 
   constructor(
     private readonly botConfig: BotConfigService,
@@ -38,27 +39,41 @@ export class MentionResponderService {
       return;
     }
 
+    const userId = message.author.id;
+    const isAdmin = userId === this.adminUserId;
+
+    if (!isAdmin && this.usersBeingProcessed.has(userId)) {
+      this.logger.debug(`Ignoring message from ${message.author.username} - already processing`);
+      return;
+    }
+
     const channel = this.getTypingCapableChannel(message.channel);
     if (!channel) {
       return;
     }
 
-    if (await this.tryHandleAdminComeback(message, channel)) {
-      return;
-    }
+    this.usersBeingProcessed.add(userId);
 
-    if (this.isBlacklistedChannel(channel.id)) {
-      await this.reactWithThumbsDown(message);
-      return;
-    }
+    try {
+      if (await this.tryHandleAdminComeback(message, channel)) {
+        return;
+      }
 
-    const userPrompt = await this.extractUserPrompt(message);
-    if (!userPrompt) {
-      this.logger.warn('Received mention without additional text');
-      return;
-    }
+      if (this.isBlacklistedChannel(channel.id)) {
+        await this.reactWithThumbsDown(message);
+        return;
+      }
 
-    await this.respondToMention(message, channel, userPrompt);
+      const userPrompt = await this.extractUserPrompt(message);
+      if (!userPrompt) {
+        this.logger.warn('Received mention without additional text');
+        return;
+      }
+
+      await this.respondToMention(message, channel, userPrompt);
+    } finally {
+      this.usersBeingProcessed.delete(userId);
+    }
   }
 
   private shouldProcessMessage(message: Message): boolean {
