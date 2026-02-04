@@ -4,11 +4,27 @@ A NestJS CLI application that acts as a Discord bot, sending daily polls to a sp
 
 ## Features
 
-- Sends a daily poll at 12:00 (noon) to a configured Discord channel
+### Daily Poll
+- Sends a daily poll at 18:00 to a configured Discord channel
 - Poll title: "il scoatem pe mihnea?"
 - Poll answers: "da" and "da"
 - Poll expires after 1 hour
 - Sends an announcement message before the poll: "Timpul pentru votul zilnic!"
+
+### Mention Responder (ChatGPT Integration)
+- Responds to @mentions using OpenAI's ChatGPT API
+- Bot has a persona called "Mihneainatorul" - a parody character that roasts users with creative insults
+- Simulates typing while generating responses for a natural feel
+- Rate limiting: one request per user at a time (prevents spam)
+
+### Channel Controls
+- **Blacklisted channels**: Bot reacts with 👎 instead of responding in specified channels
+- **Bot-allowed channels**: Allows the bot to respond to other bots in whitelisted channels
+
+### Admin Comeback Feature
+- Admins can reply to any message while mentioning the bot
+- The bot will then roast the author of the referenced message
+- Admin can include instructions in their message to guide the response
 
 ## Prerequisites
 
@@ -31,6 +47,7 @@ npm install
 DISCORD_BOT_TOKEN=your_discord_bot_token_here
 DISCORD_GUILD_ID=your_discord_guild_id_here
 DISCORD_CHANNEL_ID=your_discord_channel_id_here
+OPENAI_API_KEY=your_openai_api_key_here
 ```
 
 3. Build the project:
@@ -55,19 +72,40 @@ npm run start:dev
 
 The application uses `@nestjs/config` and `dotenv` to load environment variables from a `.env` file.
 
-Required environment variables:
+### Required environment variables
 
 - `DISCORD_BOT_TOKEN`: Your Discord bot token (get it from https://discord.com/developers/applications)
 - `DISCORD_GUILD_ID`: The Discord server (guild) ID where the bot should operate
 - `DISCORD_CHANNEL_ID`: The channel ID where polls should be sent
+- `OPENAI_API_KEY`: Your OpenAI API key for ChatGPT integration
+
+### Optional environment variables
+
+- `OPENAI_MODEL`: The OpenAI model to use (default: `gpt-4o-mini`)
+- `DISCORD_BLACKLISTED_CHANNEL_IDS`: Comma-separated list of channel IDs where the bot will only react with 👎
+- `DISCORD_ALLOWED_BOT_CHANNEL_IDS`: Comma-separated list of channel IDs where the bot can respond to other bots
+- `DISCORD_ADMIN_USER_ID`: Discord user ID of the admin who can use the comeback feature
 
 ## How It Works
 
+### Daily Poll
 1. The bot connects to Discord when the application starts
-2. A cron job runs every day at 12:00 (noon)
+2. A cron job runs every day at 18:00
 3. Before sending the poll, it sends: "Timpul pentru votul zilnic!"
 4. Then it sends a poll with the question "il scoatem pe mihnea?" with two "da" options
 5. The poll automatically expires after 1 hour
+
+### Mention Responses
+1. When a user @mentions the bot, it extracts the message content
+2. The message is sent to OpenAI with a system prompt defining the bot's persona
+3. The bot simulates typing while waiting for the response
+4. The response is sent as a reply to the user's message
+5. If the response is too long (>2000 chars), a fallback message is sent instead
+
+### Admin Comeback
+1. An admin replies to any user's message while mentioning the bot
+2. The admin can include additional instructions in the reply
+3. The bot fetches the original message and generates a roast targeting that user
 
 ## Discord Bot Setup
 
@@ -156,6 +194,7 @@ docker run \
   -e DISCORD_BOT_TOKEN=your_token \
   -e DISCORD_GUILD_ID=your_guild_id \
   -e DISCORD_CHANNEL_ID=your_channel_id \
+  -e OPENAI_API_KEY=your_openai_key \
   mihnea-poller
 ```
 
