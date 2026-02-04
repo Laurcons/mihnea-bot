@@ -7,7 +7,7 @@ async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
 
   logger.log('Discord bot application started');
-  logger.log('Bot will send polls daily at 18:00');
+  logger.log('Kick poll at 18:00, results processed at 19:00');
 
   // Keep the application running
   process.on('SIGINT', async () => {

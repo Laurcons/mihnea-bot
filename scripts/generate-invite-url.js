@@ -18,11 +18,17 @@ if (!clientId) {
 }
 
 // Required permissions:
-// - Send Messages (8192)
+// - Send Messages (2048)
 // - View Channels (1024)
 // - Read Message History (65536)
-const permissions = '8192'; // Send Messages + View Channels (basic permissions)
-const scopes = 'bot';
+// - Kick Members (2) - for kick vote feature
+// - Create Instant Invite (1) - for rejoin links
+const permissions = 68611; // 2048 + 1024 + 65536 + 2 + 1
+
+// Scopes:
+// - bot: basic bot functionality
+// - applications.commands: slash commands (/mihneainator kickvote)
+const scopes = 'bot%20applications.commands';
 
 const inviteUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&permissions=${permissions}&scope=${scopes}`;
 
@@ -31,4 +37,6 @@ console.log('═'.repeat(60));
 console.log(inviteUrl);
 console.log('═'.repeat(60));
 console.log('\n💡 Copy this URL and open it in your browser to invite the bot to your server.');
-console.log('   Make sure you have "Manage Server" permissions on the target server.\n');
+console.log('   Make sure you have "Manage Server" permissions on the target server.');
+console.log('\n⚠️  After inviting, ensure the bot\'s role is ABOVE any kickable users in');
+console.log('   Server Settings → Roles (drag the bot role higher).\n');

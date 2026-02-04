@@ -4,6 +4,7 @@ import {
   Client,
   Events,
   GatewayIntentBits,
+  Interaction,
   Message,
   Partials,
   TextChannel,
@@ -11,6 +12,7 @@ import {
 import { BotConfigService } from './bot-config.service';
 
 type MessageHandler = (message: Message) => void;
+type InteractionHandler = (interaction: Interaction) => void;
 
 @Injectable()
 export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
@@ -21,6 +23,7 @@ export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
     this.client = new Client({
       intents: [
         GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
       ],
@@ -47,6 +50,10 @@ export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
 
   onMessage(handler: MessageHandler): void {
     this.client.on(Events.MessageCreate, handler);
+  }
+
+  onInteraction(handler: InteractionHandler): void {
+    this.client.on(Events.InteractionCreate, handler);
   }
 
   getClient(): Client {

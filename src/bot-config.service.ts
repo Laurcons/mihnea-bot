@@ -59,6 +59,14 @@ export class BotConfigService {
     return this.configService.get<string>('DISCORD_ADMIN_USER_ID') ?? null;
   }
 
+  getDataDirectory(): string {
+    return this.configService.get<string>('DATA_DIRECTORY') ?? './data';
+  }
+
+  getDiscordClientId(): string {
+    return this.getRequired('DISCORD_CLIENT_ID');
+  }
+
   private getRequired(key: string): string {
     const value = this.configService.get<string>(key);
 
