@@ -10,10 +10,10 @@ export class KickPollSchedulerService implements OnModuleInit {
 
   async onModuleInit() {
     // Uncomment to test on startup:
-    await this.handleDailyPoll();
+    // await this.handleDailyPoll();
   }
 
-  @Cron('0 18 * * *')
+  @Cron('0 16 * * *')
   async handleDailyPoll() {
     this.logger.log('Starting daily kick poll at 18:00');
     try {
@@ -26,7 +26,7 @@ export class KickPollSchedulerService implements OnModuleInit {
     }
   }
 
-  @Cron('0 19 * * *')
+  @Cron('1 17 * * *')
   async handlePollResult() {
     this.logger.log('Processing poll result at 19:00');
     try {
