@@ -28,7 +28,9 @@ export class BotConfigService {
   }
 
   getBlacklistedChannelIds(): string[] {
-    const raw = this.configService.get<string>('DISCORD_BLACKLISTED_CHANNEL_IDS');
+    const raw = this.configService.get<string>(
+      'DISCORD_BLACKLISTED_CHANNEL_IDS',
+    );
 
     if (!raw) {
       return [];
@@ -53,6 +55,15 @@ export class BotConfigService {
       .split(',')
       .map((value) => value.trim())
       .filter(Boolean);
+  }
+
+  getWhitelistChannel(): string | null {
+    const raw = this.configService.get<string>('DISCORD_WHITELIST_CHANNEL_ID');
+    if (!raw) {
+      return null;
+    }
+
+    return raw;
   }
 
   getAdminUserId(): string | null {
