@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaService } from '../prisma/prisma.service';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
+import { WordleResult } from './wordle-result.schema';
 
 export interface PlayerStreak {
   username: string;
@@ -8,14 +10,17 @@ export interface PlayerStreak {
 
 @Injectable()
 export class WordleStatsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    @InjectModel(WordleResult.name)
+    private readonly wordleResultModel: Model<WordleResult>,
+  ) {}
 
   async getStreaks(gameType: string): Promise<PlayerStreak[]> {
-    const results = await this.prisma.wordleResult.findMany({
-      where: { gameType },
-      select: { userId: true, username: true, puzzleDay: true },
-      orderBy: { puzzleDay: 'asc' },
-    });
+    const results = await this.wordleResultModel
+      .find({ gameType })
+      .select('userId username puzzleDay')
+      .sort({ puzzleDay: 1 })
+      .lean();
 
     const byUser = new Map<string, { username: string; days: number[] }>();
     for (const r of results) {

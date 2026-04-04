@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
+import { MongooseModule } from '@nestjs/mongoose';
 import { CoreModule } from './core.module';
 import { MentionResponderService } from './mention-responder.service';
 import { KickPollModule } from './kick-poll/kick-poll.module';
@@ -12,6 +13,12 @@ import { SlashCommandModule } from './slash-command/slash-command.module';
     ConfigModule.forRoot({
       isGlobal: true,
       envFilePath: '.env',
+    }),
+    MongooseModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        uri: config.getOrThrow<string>('MONGODB_URL'),
+      }),
     }),
     ScheduleModule.forRoot(),
     CoreModule,

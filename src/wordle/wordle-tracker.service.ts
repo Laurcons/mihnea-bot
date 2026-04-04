@@ -1,17 +1,19 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
+import { InjectModel } from '@nestjs/mongoose';
+import { Model } from 'mongoose';
 import { Message } from 'discord.js';
 import { BotConfigService } from '../bot-config.service';
 import { DiscordClientService } from '../discord-client.service';
-import { PrismaService } from '../prisma/prisma.service';
 import { WordleParserService } from './wordle-parser.service';
 import { ParsedWordleResult } from './wordle.types';
+import { WordleResult } from './wordle-result.schema';
 
-function isPrismaUniqueConstraintError(error: unknown): boolean {
+function isMongooseDuplicateKeyError(error: unknown): boolean {
   return (
     typeof error === 'object' &&
     error !== null &&
     'code' in error &&
-    (error as { code: string }).code === 'P2002'
+    (error as { code: number }).code === 11000
   );
 }
 
@@ -24,7 +26,8 @@ export class WordleTrackerService implements OnModuleInit {
     private readonly discordClient: DiscordClientService,
     private readonly botConfig: BotConfigService,
     private readonly parser: WordleParserService,
-    private readonly prisma: PrismaService,
+    @InjectModel(WordleResult.name)
+    private readonly wordleResultModel: Model<WordleResult>,
   ) {}
 
   onModuleInit(): void {
@@ -63,17 +66,15 @@ export class WordleTrackerService implements OnModuleInit {
     const { id: userId, username } = message.author;
 
     try {
-      await this.prisma.wordleResult.create({
-        data: {
-          userId,
-          username,
-          loggedAt: new Date(),
-          gameType: result.gameType,
-          puzzleDay: result.puzzleDay,
-          tries: result.tries,
-          maxTries: result.maxTries,
-          attempts: JSON.stringify(result.attempts),
-        },
+      await this.wordleResultModel.create({
+        userId,
+        username,
+        loggedAt: new Date(),
+        gameType: result.gameType,
+        puzzleDay: result.puzzleDay,
+        tries: result.tries,
+        maxTries: result.maxTries,
+        attempts: result.attempts,
       });
 
       this.logger.log(
@@ -82,7 +83,7 @@ export class WordleTrackerService implements OnModuleInit {
 
       await message.react('✅');
     } catch (error: unknown) {
-      if (isPrismaUniqueConstraintError(error)) {
+      if (isMongooseDuplicateKeyError(error)) {
         this.logger.warn(
           `Duplicate result ignored: userId=${userId} gameType=${result.gameType} day=${result.puzzleDay}`,
         );

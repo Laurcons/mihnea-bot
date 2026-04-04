@@ -73,6 +73,10 @@ export class BotConfigService {
     return this.configService.get<string>('DISCORD_WORDLE_CHANNEL_ID') ?? null;
   }
 
+  getMongoUrl(): string {
+    return this.getRequired('MONGODB_URL');
+  }
+
   private getRequired(key: string): string {
     const value = this.configService.get<string>(key);
 
