@@ -11,6 +11,7 @@ export class KickPollSchedulerService implements OnModuleInit {
   async onModuleInit() {
     // Uncomment to test on startup:
     // await this.handleDailyPoll();
+    // await this.handlePollResult();
   }
 
   @Cron('0 16 * * *')

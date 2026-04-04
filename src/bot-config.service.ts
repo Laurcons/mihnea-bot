@@ -28,7 +28,9 @@ export class BotConfigService {
   }
 
   getBlacklistedChannelIds(): string[] {
-    const raw = this.configService.get<string>('DISCORD_BLACKLISTED_CHANNEL_IDS');
+    const raw = this.configService.get<string>(
+      'DISCORD_BLACKLISTED_CHANNEL_IDS',
+    );
 
     if (!raw) {
       return [];
@@ -65,6 +67,10 @@ export class BotConfigService {
 
   getDiscordClientId(): string {
     return this.getRequired('DISCORD_CLIENT_ID');
+  }
+
+  getWordleChannelId(): string | null {
+    return this.configService.get<string>('DISCORD_WORDLE_CHANNEL_ID') ?? null;
   }
 
   private getRequired(key: string): string {

@@ -7,7 +7,9 @@ import {
 } from 'discord.js';
 import { BotConfigService } from '../bot-config.service';
 import { DiscordClientService } from '../discord-client.service';
-import { KickPollDataService } from './kick-poll-data.service';
+import { KickPollDataService } from '../kick-poll/kick-poll-data.service';
+import { WordleStatsService } from '../wordle/wordle-stats.service';
+import { WORDLE_GAME_TYPES } from '../wordle/wordle-parser.service';
 
 @Injectable()
 export class SlashCommandService implements OnModuleInit {
@@ -17,6 +19,7 @@ export class SlashCommandService implements OnModuleInit {
     private readonly botConfig: BotConfigService,
     private readonly discordClient: DiscordClientService,
     private readonly kickPollData: KickPollDataService,
+    private readonly wordleStats: WordleStatsService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -65,6 +68,25 @@ export class SlashCommandService implements OnModuleInit {
               .setName('optout')
               .setDescription('Retrage-te de la votul zilnic de kick'),
           ),
+      )
+      .addSubcommandGroup((group) =>
+        group
+          .setName('wordle')
+          .setDescription('Wordle stats')
+          .addSubcommand((sub) =>
+            sub
+              .setName('streaks')
+              .setDescription('Afișează streak-ul pentru fiecare user')
+              .addStringOption((opt) =>
+                opt
+                  .setName('gametype')
+                  .setDescription('Tipul jocului (default: Wordle)')
+                  .setRequired(false)
+                  .addChoices(
+                    ...WORDLE_GAME_TYPES.map((t) => ({ name: t, value: t })),
+                  ),
+              ),
+          ),
       );
 
     return [mihneainatorCommand.toJSON()];
@@ -85,6 +107,8 @@ export class SlashCommandService implements OnModuleInit {
 
       if (subcommandGroup === 'kickvote') {
         await this.handleKickVoteCommand(interaction, subcommand);
+      } else if (subcommandGroup === 'wordle') {
+        await this.handleWordleCommand(interaction, subcommand);
       }
     });
   }
@@ -129,6 +153,41 @@ export class SlashCommandService implements OnModuleInit {
       }
     } catch (error) {
       this.logger.error(`Error handling kickvote command: ${error}`);
+      await interaction.reply({
+        content: '❌ A apărut o eroare. Încearcă din nou.',
+        ephemeral: true,
+      });
+    }
+  }
+
+  private async handleWordleCommand(
+    interaction: import('discord.js').ChatInputCommandInteraction,
+    subcommand: string,
+  ): Promise<void> {
+    if (subcommand !== 'streaks') return;
+
+    const gameType = interaction.options.getString('gametype') ?? 'Wordle';
+
+    try {
+      const streaks = await this.wordleStats.getStreaks(gameType);
+
+      if (streaks.length === 0) {
+        await interaction.reply({
+          content: `Nu există rezultate pentru **${gameType}**.`,
+        });
+        return;
+      }
+
+      const lines = streaks.map(
+        ({ username, streak }) =>
+          `**${username}**: ${streak} zi${streak !== 1 ? 'le' : ''}`,
+      );
+
+      await interaction.reply({
+        content: `**Streak-uri pentru ${gameType}:**\n${lines.join('\n')}`,
+      });
+    } catch (error) {
+      this.logger.error(`Error handling wordle streaks command: ${error}`);
       await interaction.reply({
         content: '❌ A apărut o eroare. Încearcă din nou.',
         ephemeral: true,

@@ -4,6 +4,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { CoreModule } from './core.module';
 import { MentionResponderService } from './mention-responder.service';
 import { KickPollModule } from './kick-poll/kick-poll.module';
+import { WordleModule } from './wordle/wordle.module';
+import { SlashCommandModule } from './slash-command/slash-command.module';
 
 @Module({
   imports: [
@@ -14,6 +16,8 @@ import { KickPollModule } from './kick-poll/kick-poll.module';
     ScheduleModule.forRoot(),
     CoreModule,
     KickPollModule,
+    WordleModule,
+    SlashCommandModule,
   ],
   controllers: [],
   providers: [MentionResponderService],

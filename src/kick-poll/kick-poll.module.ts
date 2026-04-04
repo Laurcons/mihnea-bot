@@ -4,7 +4,6 @@ import { KickPollAiService } from './kick-poll-ai.service';
 import { KickPollService } from './kick-poll.service';
 import { KickPollSchedulerService } from './kick-poll-scheduler.service';
 import { KickExecutorService } from './kick-executor.service';
-import { SlashCommandService } from './slash-command.service';
 
 @Module({
   providers: [
@@ -13,7 +12,6 @@ import { SlashCommandService } from './slash-command.service';
     KickPollService,
     KickPollSchedulerService,
     KickExecutorService,
-    SlashCommandService,
   ],
   exports: [KickPollService, KickPollDataService],
 })
