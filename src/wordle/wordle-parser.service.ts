@@ -135,6 +135,12 @@ function calculateTodayPuzzleDay(anchor: PuzzleDayAnchor): number {
 
 @Injectable()
 export class WordleParserService {
+  getCurrentPuzzleDay(gameType: string): number | null {
+    const definition = GAME_DEFINITIONS.find((d) => d.gameType === gameType);
+    if (!definition) return null;
+    return calculateTodayPuzzleDay(definition.anchor);
+  }
+
   isCurrentPuzzle(gameType: string, puzzleDay: number): boolean {
     const definition = GAME_DEFINITIONS.find((d) => d.gameType === gameType);
     if (!definition) return false;

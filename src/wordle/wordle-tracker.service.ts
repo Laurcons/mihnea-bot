@@ -7,6 +7,7 @@ import { DiscordClientService } from '../discord-client.service';
 import { WordleParserService } from './wordle-parser.service';
 import { ParsedWordleResult } from './wordle.types';
 import { WordleResult } from './wordle-result.schema';
+import { DiscordUser } from './discord-user.schema';
 
 function isMongooseDuplicateKeyError(error: unknown): boolean {
   return (
@@ -28,6 +29,8 @@ export class WordleTrackerService implements OnModuleInit {
     private readonly parser: WordleParserService,
     @InjectModel(WordleResult.name)
     private readonly wordleResultModel: Model<WordleResult>,
+    @InjectModel(DiscordUser.name)
+    private readonly discordUserModel: Model<DiscordUser>,
   ) {}
 
   onModuleInit(): void {
@@ -59,6 +62,48 @@ export class WordleTrackerService implements OnModuleInit {
     await this.saveResult(message, result);
   }
 
+  private async upsertUserStreak(
+    userId: string,
+    username: string,
+    gameType: string,
+    puzzleDay: number,
+  ): Promise<void> {
+    const sp = `wordleStats.${gameType}`;
+    await this.discordUserModel.findOneAndUpdate(
+      { discordId: userId },
+      [
+        {
+          $set: {
+            username,
+            [sp]: {
+              lastPuzzleDay: puzzleDay,
+              currentStreak: {
+                $cond: [
+                  { $eq: [`$${sp}.lastPuzzleDay`, puzzleDay - 1] },
+                  { $add: [{ $ifNull: [`$${sp}.currentStreak`, 0] }, 1] },
+                  1,
+                ],
+              },
+              biggestStreak: {
+                $max: [
+                  { $ifNull: [`$${sp}.biggestStreak`, 0] },
+                  {
+                    $cond: [
+                      { $eq: [`$${sp}.lastPuzzleDay`, puzzleDay - 1] },
+                      { $add: [{ $ifNull: [`$${sp}.currentStreak`, 0] }, 1] },
+                      1,
+                    ],
+                  },
+                ],
+              },
+            },
+          },
+        },
+      ],
+      { upsert: true },
+    );
+  }
+
   private async saveResult(
     message: Message,
     result: ParsedWordleResult,
@@ -81,6 +126,12 @@ export class WordleTrackerService implements OnModuleInit {
         `Saved result: userId=${userId} gameType=${result.gameType} day=${result.puzzleDay}`,
       );
 
+      await this.upsertUserStreak(
+        userId,
+        username,
+        result.gameType,
+        result.puzzleDay,
+      );
       await message.react('✅');
     } catch (error: unknown) {
       if (isMongooseDuplicateKeyError(error)) {
@@ -91,6 +142,7 @@ export class WordleTrackerService implements OnModuleInit {
       } else {
         const msg = error instanceof Error ? error.message : String(error);
         this.logger.error(`Failed to save wordle result: ${msg}`);
+        await message.react('😵');
       }
     }
   }

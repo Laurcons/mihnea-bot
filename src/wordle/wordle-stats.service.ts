@@ -1,50 +1,38 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { WordleResult } from './wordle-result.schema';
+import { DiscordUser } from './discord-user.schema';
 
 export interface PlayerStreak {
   username: string;
-  streak: number;
+  currentStreak: number;
+  biggestStreak: number;
 }
 
 @Injectable()
 export class WordleStatsService {
   constructor(
-    @InjectModel(WordleResult.name)
-    private readonly wordleResultModel: Model<WordleResult>,
+    @InjectModel(DiscordUser.name)
+    private readonly discordUserModel: Model<DiscordUser>,
   ) {}
 
   async getStreaks(gameType: string): Promise<PlayerStreak[]> {
-    const results = await this.wordleResultModel
-      .find({ gameType })
-      .select('userId username puzzleDay')
-      .sort({ puzzleDay: 1 })
+    const key = `wordleStats.${gameType}`;
+    const users = await this.discordUserModel
+      .find({ [key]: { $exists: true } })
+      .select(`username ${key}`)
       .lean();
 
-    const byUser = new Map<string, { username: string; days: number[] }>();
-    for (const r of results) {
-      if (!byUser.has(r.userId)) {
-        byUser.set(r.userId, { username: r.username, days: [] });
-      }
-      byUser.get(r.userId)!.days.push(r.puzzleDay);
-    }
-
-    const streaks: PlayerStreak[] = [];
-    for (const { username, days } of byUser.values()) {
-      // days is sorted ascending; walk backwards from the last entry
-      let streak = 1;
-      for (let i = days.length - 1; i > 0; i--) {
-        if (days[i] - days[i - 1] === 1) {
-          streak++;
-        } else {
-          break;
-        }
-      }
-      streaks.push({ username, streak });
-    }
-
-    streaks.sort((a, b) => b.streak - a.streak);
-    return streaks;
+    return users
+      .map((u) => {
+        const stats = (u.wordleStats as unknown as Record<string, { currentStreak: number; biggestStreak: number }>)[gameType];
+        return {
+          username: u.username,
+          currentStreak: stats.currentStreak,
+          biggestStreak: stats.biggestStreak,
+        };
+      })
+      .filter((u) => u.currentStreak > 0)
+      .sort((a, b) => b.currentStreak - a.currentStreak);
   }
 }

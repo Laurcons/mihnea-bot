@@ -179,8 +179,12 @@ export class SlashCommandService implements OnModuleInit {
       }
 
       const lines = streaks.map(
-        ({ username, streak }) =>
-          `**${username}**: ${streak} zi${streak !== 1 ? 'le' : ''}`,
+        ({ username, currentStreak, biggestStreak }, idx) =>
+          `${idx + 1}. **${username}**: ${currentStreak} zi${currentStreak !== 1 ? 'le' : ''}${
+            biggestStreak !== currentStreak
+              ? `, cel mai mare ${biggestStreak} zi${biggestStreak !== 1 ? 'le' : ''}`
+              : ``
+          }`,
       );
 
       await interaction.reply({
