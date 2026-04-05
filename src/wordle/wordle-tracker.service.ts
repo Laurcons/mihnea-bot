@@ -100,7 +100,7 @@ export class WordleTrackerService implements OnModuleInit {
           },
         },
       ],
-      { upsert: true },
+      { upsert: true, updatePipeline: true },
     );
   }
 
