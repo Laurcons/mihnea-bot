@@ -55,15 +55,15 @@ export class WordleTrackerService implements OnModuleInit {
           `(tries=${result.tries ?? 'X'}/${result.maxTries}, attempts=${result.attempts.length})`,
       );
 
-      // if (!this.parser.isCurrentPuzzle(result.gameType, result.puzzleDay)) {
-      //   this.logger.warn(
-      //     `Rejected out-of-range puzzle: ${result.gameType} #${result.puzzleDay} from ${message.author.username}`,
-      //   );
-      //   failures.push(
-      //     `**${result.gameType} #${result.puzzleDay}**: nu este puzzleul zilei`,
-      //   );
-      //   continue;
-      // }
+      if (!this.parser.isCurrentPuzzle(result.gameType, result.puzzleDay)) {
+        this.logger.warn(
+          `Rejected out-of-range puzzle: ${result.gameType} #${result.puzzleDay} from ${message.author.username}`,
+        );
+        failures.push(
+          `**${result.gameType} #${result.puzzleDay}**: nu este puzzleul zilei`,
+        );
+        continue;
+      }
 
       const error = await this.saveResult(message, result);
       if (error !== null) {
