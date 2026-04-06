@@ -157,39 +157,53 @@ export class WordleParserService {
     return Math.abs(puzzleDay - todayPuzzleDay) <= PUZZLE_DAY_TOLERANCE;
   }
 
-  parse(content: string): ParsedWordleResult | null {
-    const lines = content
-      .split('\n')
-      .map((l) => l.trim())
-      .filter(Boolean);
+  parse(content: string): ParsedWordleResult[] {
+    const lines = content.split('\n').map((l) => l.trim());
+    const results: ParsedWordleResult[] = [];
+    let i = 0;
 
-    for (const definition of GAME_DEFINITIONS) {
-      const headerIndex = lines.findIndex((line) =>
-        definition.headerRegex.test(line),
-      );
+    while (i < lines.length) {
+      let matched = false;
 
-      if (headerIndex === -1) {
-        continue;
+      for (const definition of GAME_DEFINITIONS) {
+        const headerMatch = lines[i].match(definition.headerRegex);
+        if (!headerMatch) continue;
+
+        const puzzleDay = definition.extractPuzzleDay(headerMatch);
+
+        // Skip one optional empty line between header and tries block
+        let triesStart = i + 1;
+        if (triesStart < lines.length && lines[triesStart] === '') {
+          triesStart++;
+        }
+
+        // Collect contiguous emoji lines
+        const attempts: string[] = [];
+        let j = triesStart;
+        while (j < lines.length && definition.emojiLineRegex.test(lines[j])) {
+          attempts.push(lines[j]);
+          j++;
+        }
+
+        const tries = definition.extractTries(headerMatch, attempts);
+        results.push({
+          gameType: definition.gameType,
+          puzzleDay,
+          tries,
+          maxTries: definition.maxTries,
+          attempts,
+        });
+
+        i = j;
+        matched = true;
+        break;
       }
 
-      const headerMatch = lines[headerIndex].match(definition.headerRegex)!;
-      const puzzleDay = definition.extractPuzzleDay(headerMatch);
-
-      const attempts = lines
-        .slice(headerIndex + 1)
-        .filter((line) => definition.emojiLineRegex.test(line));
-
-      const tries = definition.extractTries(headerMatch, attempts);
-
-      return {
-        gameType: definition.gameType,
-        puzzleDay,
-        tries,
-        maxTries: definition.maxTries,
-        attempts,
-      };
+      if (!matched) {
+        i++;
+      }
     }
 
-    return null;
+    return results;
   }
 }
