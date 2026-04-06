@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ParsedWordleResult } from './wordle.types';
 
 interface PuzzleDayAnchor {
@@ -89,7 +89,7 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
     headerRegex: /^Owdle Hero\s+(\d{4}-\d{2}-\d{2})\s.{1,2}\s\((\d) tries\)$/im,
     emojiLineRegex: /^[🟥🟨🟩]+$/u,
     extractPuzzleDay: (m) => daysBetween('2026-01-01', m[1]),
-    extractTries: (m) => parseInt(m[2]),
+    extractTries: (m) => parseInt(m[2], 10),
     maxTries: 100,
     anchor: { date: '2026-01-01', puzzleDay: 1 },
   },
@@ -99,9 +99,18 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
       /^Owdle Conversation\s+(\d{4}-\d{2}-\d{2})\s.{1,2}\s\((\d) tries\)$/im,
     emojiLineRegex: /^[🟥🟨🟩]+$/u,
     extractPuzzleDay: (m) => daysBetween('2026-01-01', m[1]),
-    extractTries: (m) => parseInt(m[2]),
+    extractTries: (m) => parseInt(m[2], 10),
     maxTries: 100,
     anchor: { date: '2026-01-01', puzzleDay: 1 },
+  },
+  {
+    gameType: 'Nerdle',
+    headerRegex: /^nerdlegame\s+([\d,]+)\s+([X\d])\/6$/im,
+    emojiLineRegex: /^[🟥🟨🟩🟪⬛]+$/u,
+    extractPuzzleDay: (m) => parseInt(m[1], 10),
+    extractTries: (m) => parseInt(m[2], 10),
+    maxTries: 6,
+    anchor: { date: '2026-04-06', puzzleDay: 1538 },
   },
 ];
 
