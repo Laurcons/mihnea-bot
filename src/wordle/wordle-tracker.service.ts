@@ -8,6 +8,7 @@ import { WordleParserService } from './wordle-parser.service';
 import { ParsedWordleResult } from './wordle.types';
 import { WordleResult } from './wordle-result.schema';
 import { DiscordUser } from './discord-user.schema';
+import { WordleCommentaryService } from './wordle-commentary.service';
 
 function isMongooseDuplicateKeyError(error: unknown): boolean {
   return (
@@ -27,6 +28,7 @@ export class WordleTrackerService implements OnModuleInit {
     private readonly discordClient: DiscordClientService,
     private readonly botConfig: BotConfigService,
     private readonly parser: WordleParserService,
+    private readonly commentary: WordleCommentaryService,
     @InjectModel(WordleResult.name)
     private readonly wordleResultModel: Model<WordleResult>,
     @InjectModel(DiscordUser.name)
@@ -48,6 +50,7 @@ export class WordleTrackerService implements OnModuleInit {
     if (results.length === 0) return;
 
     const failures: string[] = [];
+    const successfulResults: ParsedWordleResult[] = [];
 
     for (const result of results) {
       this.logger.log(
@@ -55,12 +58,15 @@ export class WordleTrackerService implements OnModuleInit {
           `(tries=${result.tries ?? 'X'}/${result.maxTries}, attempts=${result.attempts.length})`,
       );
 
-      if (!this.parser.isCurrentPuzzle(result.gameType, result.puzzleDay)) {
+      if (
+        !this.botConfig.getIsWordlePuzzleDayIgnored() &&
+        !this.parser.isCurrentPuzzle(result.gameType, result.puzzleDay)
+      ) {
         this.logger.warn(
           `Rejected out-of-range puzzle: ${result.gameType} #${result.puzzleDay} from ${message.author.username}`,
         );
         failures.push(
-          `**${result.gameType} #${result.puzzleDay}**: nu este puzzleul zilei`,
+          `**${result.gameType} #${result.puzzleDay}**: nu îi puzzleul zilei`,
         );
         continue;
       }
@@ -68,17 +74,23 @@ export class WordleTrackerService implements OnModuleInit {
       const error = await this.saveResult(message, result);
       if (error !== null) {
         failures.push(`**${result.gameType} #${result.puzzleDay}**: ${error}`);
+      } else {
+        successfulResults.push(result);
       }
+    }
+
+    if (successfulResults.length > 0) {
+      const chosen =
+        successfulResults[Math.floor(Math.random() * successfulResults.length)];
+      void this.commentary.generateAndSendCommentary(message, chosen);
     }
 
     if (failures.length > 0) {
       if (results.length === 1) {
-        await message.reply(
-          `Rezultatul tău nu a putut fi înregistrat.\n${failures[0]}`,
-        );
+        await message.reply(`ceva nu-i bine la rezultatu tău.\n${failures[0]}`);
       } else {
         await message.reply(
-          `Unele rezultate nu au putut fi înregistrate:\n${failures.map((f) => `- ${f}`).join('\n')}`,
+          `ceva nu-i bine la câteva rezultate:\n${failures.map((f) => `- ${f}`).join('\n')}`,
         );
       }
     }
@@ -162,12 +174,12 @@ export class WordleTrackerService implements OnModuleInit {
           `Duplicate result ignored: userId=${userId} gameType=${result.gameType} day=${result.puzzleDay}`,
         );
         await message.react('👎');
-        return 'ai trimis deja acest rezultat';
+        return 'ai trimis deja rezultatu aista';
       } else {
         const msg = error instanceof Error ? error.message : String(error);
         this.logger.error(`Failed to save wordle result: ${msg}`);
         await message.react('😵');
-        return 'eroare internă la salvare';
+        return 'mi-o crepat mațu, zi-i lu bubu să vie';
       }
     }
   }

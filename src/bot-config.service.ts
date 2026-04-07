@@ -77,6 +77,12 @@ export class BotConfigService {
     return this.getRequired('MONGODB_URL');
   }
 
+  getIsWordlePuzzleDayIgnored(): boolean {
+    return (
+      this.configService.get<string>('WORDLE_IGNORE_PUZZLE_DAY') === 'true'
+    );
+  }
+
   private getRequired(key: string): string {
     const value = this.configService.get<string>(key);
 
