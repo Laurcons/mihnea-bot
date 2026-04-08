@@ -86,7 +86,8 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
   },
   {
     gameType: 'OwdleHero',
-    headerRegex: /^Owdle Hero\s+(\d{4}-\d{2}-\d{2})\s.{1,2}\s\((\d) tries\)$/im,
+    headerRegex:
+      /^Owdle Hero\s+(\d{4}-\d{2}-\d{2})\s.{1,2}\s\((\d+) tries\)$/im,
     emojiLineRegex: /^[🟥🟨🟩]+$/u,
     extractPuzzleDay: (m) => daysBetween('2026-01-01', m[1]),
     extractTries: (m) => parseInt(m[2], 10),
@@ -96,7 +97,7 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
   {
     gameType: 'OwdleConversation',
     headerRegex:
-      /^Owdle Conversation\s+(\d{4}-\d{2}-\d{2})\s.{1,2}\s\((\d) tries\)$/im,
+      /^Owdle Conversation\s+(\d{4}-\d{2}-\d{2})\s.{1,2}\s\((\d+) tries\)$/im,
     emojiLineRegex: /^[🟥🟨🟩]+$/u,
     extractPuzzleDay: (m) => daysBetween('2026-01-01', m[1]),
     extractTries: (m) => parseInt(m[2], 10),
