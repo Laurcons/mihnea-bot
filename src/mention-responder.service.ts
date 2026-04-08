@@ -43,7 +43,9 @@ export class MentionResponderService {
     const isAdmin = userId === this.adminUserId;
 
     if (!isAdmin && this.usersBeingProcessed.has(userId)) {
-      this.logger.debug(`Ignoring message from ${message.author.username} - already processing`);
+      this.logger.debug(
+        `Ignoring message from ${message.author.username} - already processing`,
+      );
       return;
     }
 
@@ -90,6 +92,10 @@ export class MentionResponderService {
     }
 
     if (message.author.bot && !this.isBotAllowedChannel(channel.id)) {
+      return false;
+    }
+
+    if (this.botConfig.getWordleChannelId() === channel.id) {
       return false;
     }
 
@@ -284,7 +290,9 @@ export class MentionResponderService {
 
       this.logger.error(`Failed to respond to mention: ${messageText}`, stack);
       const fallbackTarget = options?.errorReplyTarget ?? replyTarget;
-      await fallbackTarget.reply('coaie am pareză pă creier. mai încearcă o dată.');
+      await fallbackTarget.reply(
+        'coaie am pareză pă creier. mai încearcă o dată.',
+      );
     }
   }
 
@@ -317,9 +325,9 @@ export class MentionResponderService {
       return false;
     }
 
-
     const targetChannel =
-      this.getTypingCapableChannel(referencedMessage.channel) ?? fallbackChannel;
+      this.getTypingCapableChannel(referencedMessage.channel) ??
+      fallbackChannel;
 
     const adminInstruction = await this.extractAdminInstruction(message);
     if (!adminInstruction) {
@@ -357,10 +365,7 @@ export class MentionResponderService {
     return true;
   }
 
-  private isAdminComebackMessage(
-    message: Message,
-    botUserId: string,
-  ): boolean {
+  private isAdminComebackMessage(message: Message, botUserId: string): boolean {
     if (!this.adminUserId) {
       return false;
     }
