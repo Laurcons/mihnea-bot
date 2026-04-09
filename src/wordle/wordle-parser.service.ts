@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ParsedWordleResult } from './wordle.types';
+import dayjs from 'dayjs';
 
 interface PuzzleDayAnchor {
   /** A known date in YYYY-MM-DD format (Romania timezone). */
@@ -119,22 +120,12 @@ export const WORDLE_GAME_TYPES: string[] = [
   ...new Set(GAME_DEFINITIONS.map((d) => d.gameType)),
 ];
 
-const ROMANIA_TIMEZONE = 'Europe/Bucharest';
-
 function getTodayInRomania(): string {
-  return new Intl.DateTimeFormat('en-CA', {
-    timeZone: ROMANIA_TIMEZONE,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date());
-  // en-CA locale produces the YYYY-MM-DD format Intl guarantees
+  return dayjs().tz('Europe/Bucharest').format('YYYY-MM-DD');
 }
 
 function daysBetween(fromDate: string, toDate: string): number {
-  const from = new Date(fromDate + 'T00:00:00Z');
-  const to = new Date(toDate + 'T00:00:00Z');
-  return Math.round((to.getTime() - from.getTime()) / (1000 * 60 * 60 * 24));
+  return dayjs.utc(toDate).diff(dayjs.utc(fromDate), 'day');
 }
 
 function calculateTodayPuzzleDay(anchor: PuzzleDayAnchor): number {
@@ -159,15 +150,7 @@ export class WordleParserService {
 
     // Yesterday's puzzle accepted only within the 2-hour midnight leeway
     if (puzzleDay === todayPuzzleDay - 1) {
-      const romaniaHour = parseInt(
-        new Intl.DateTimeFormat('en-US', {
-          timeZone: ROMANIA_TIMEZONE,
-          hour: 'numeric',
-          hour12: false,
-        }).format(new Date()),
-        10,
-      );
-      return romaniaHour < 2;
+      return dayjs().tz('Europe/Bucharest').hour() < 2;
     }
 
     return false;
