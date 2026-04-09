@@ -141,6 +141,60 @@ export class WordleTrackerService implements OnModuleInit {
     );
   }
 
+  private async recalculateStreakFromHistory(
+    userId: string,
+    username: string,
+    gameType: string,
+  ): Promise<void> {
+    const cursor = this.wordleResultModel
+      .find({ userId, gameType })
+      .sort({ puzzleDay: -1 })
+      .cursor({ batchSize: 10 });
+
+    let currentStreak = 0;
+    let lastPuzzleDay: number | null = null;
+    let prevPuzzleDay: number | null = null;
+
+    try {
+      for await (const result of cursor) {
+        if (lastPuzzleDay === null) {
+          lastPuzzleDay = result.puzzleDay;
+          prevPuzzleDay = result.puzzleDay;
+          currentStreak = 1;
+        } else if (result.puzzleDay === prevPuzzleDay! - 1) {
+          currentStreak++;
+          prevPuzzleDay = result.puzzleDay;
+        } else {
+          break;
+        }
+      }
+    } finally {
+      await cursor.close();
+    }
+
+    if (lastPuzzleDay === null) return;
+
+    const sp = `wordleStats.${gameType}`;
+    await this.discordUserModel.findOneAndUpdate(
+      { discordId: userId },
+      [
+        {
+          $set: {
+            username,
+            [sp]: {
+              lastPuzzleDay,
+              currentStreak,
+              biggestStreak: {
+                $max: [{ $ifNull: [`$${sp}.biggestStreak`, 0] }, currentStreak],
+              },
+            },
+          },
+        },
+      ],
+      { upsert: true },
+    );
+  }
+
   private async saveResult(
     message: Message,
     result: ParsedWordleResult,
@@ -163,12 +217,22 @@ export class WordleTrackerService implements OnModuleInit {
         `Saved result: userId=${userId} gameType=${result.gameType} day=${result.puzzleDay}`,
       );
 
-      await this.upsertUserStreak(
-        userId,
-        username,
-        result.gameType,
-        result.puzzleDay,
-      );
+      const todayPuzzleDay = this.parser.getCurrentPuzzleDay(result.gameType);
+
+      if (result.puzzleDay !== todayPuzzleDay) {
+        await this.recalculateStreakFromHistory(
+          userId,
+          username,
+          result.gameType,
+        );
+      } else {
+        await this.upsertUserStreak(
+          userId,
+          username,
+          result.gameType,
+          result.puzzleDay,
+        );
+      }
       await message.react('✅');
       return null;
     } catch (error: unknown) {

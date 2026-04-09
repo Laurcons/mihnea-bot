@@ -120,7 +120,6 @@ export const WORDLE_GAME_TYPES: string[] = [
 ];
 
 const ROMANIA_TIMEZONE = 'Europe/Bucharest';
-const PUZZLE_DAY_TOLERANCE = 1;
 
 function getTodayInRomania(): string {
   return new Intl.DateTimeFormat('en-CA', {
@@ -145,9 +144,9 @@ function calculateTodayPuzzleDay(anchor: PuzzleDayAnchor): number {
 
 @Injectable()
 export class WordleParserService {
-  getCurrentPuzzleDay(gameType: string): number | null {
+  getCurrentPuzzleDay(gameType: string): number {
     const definition = GAME_DEFINITIONS.find((d) => d.gameType === gameType);
-    if (!definition) return null;
+    if (!definition) throw new Error(`Incorrect game type: ${gameType}`);
     return calculateTodayPuzzleDay(definition.anchor);
   }
 
@@ -155,7 +154,23 @@ export class WordleParserService {
     const definition = GAME_DEFINITIONS.find((d) => d.gameType === gameType);
     if (!definition) return false;
     const todayPuzzleDay = calculateTodayPuzzleDay(definition.anchor);
-    return Math.abs(puzzleDay - todayPuzzleDay) <= PUZZLE_DAY_TOLERANCE;
+
+    if (puzzleDay === todayPuzzleDay) return true;
+
+    // Yesterday's puzzle accepted only within the 2-hour midnight leeway
+    if (puzzleDay === todayPuzzleDay - 1) {
+      const romaniaHour = parseInt(
+        new Intl.DateTimeFormat('en-US', {
+          timeZone: ROMANIA_TIMEZONE,
+          hour: 'numeric',
+          hour12: false,
+        }).format(new Date()),
+        10,
+      );
+      return romaniaHour < 2;
+    }
+
+    return false;
   }
 
   parse(content: string): ParsedWordleResult[] {
