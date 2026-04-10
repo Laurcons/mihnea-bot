@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { ParsedWordleResult } from './wordle.types';
+import { ParsedWordleResult } from './types/wordle.types';
 import dayjs from 'dayjs';
 
 interface PuzzleDayAnchor {

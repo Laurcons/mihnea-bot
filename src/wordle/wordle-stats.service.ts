@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
-import { DiscordUser } from './discord-user.schema';
+import { DiscordUser } from './models/discord-user.schema';
 
 export interface PlayerStreak {
   username: string;
@@ -25,7 +25,12 @@ export class WordleStatsService {
 
     return users
       .map((u) => {
-        const stats = (u.wordleStats as unknown as Record<string, { currentStreak: number; biggestStreak: number }>)[gameType];
+        const stats = (
+          u.wordleStats as unknown as Record<
+            string,
+            { currentStreak: number; biggestStreak: number }
+          >
+        )[gameType];
         return {
           username: u.username,
           currentStreak: stats.currentStreak,

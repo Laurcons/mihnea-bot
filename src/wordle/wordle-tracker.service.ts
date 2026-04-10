@@ -5,9 +5,9 @@ import { Message } from 'discord.js';
 import { BotConfigService } from '../bot-config.service';
 import { DiscordClientService } from '../discord-client.service';
 import { WordleParserService } from './wordle-parser.service';
-import { ParsedWordleResult } from './wordle.types';
-import { WordleResult } from './wordle-result.schema';
-import { DiscordUser } from './discord-user.schema';
+import { ParsedWordleResult } from './types/wordle.types';
+import { WordleResult } from './models/wordle-result.schema';
+import { DiscordUser } from './models/discord-user.schema';
 import { WordleCommentaryService } from './wordle-commentary.service';
 
 function isMongooseDuplicateKeyError(error: unknown): boolean {
