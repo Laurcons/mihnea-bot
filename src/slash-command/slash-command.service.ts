@@ -9,6 +9,7 @@ import { BotConfigService } from '../bot-config.service';
 import { DiscordClientService } from '../discord-client.service';
 import { KickPollDataService } from '../kick-poll/kick-poll-data.service';
 import { WordleStatsService } from '../wordle/wordle-stats.service';
+import { WordleTrackerService } from '../wordle/wordle-tracker.service';
 import { WORDLE_GAME_TYPES } from '../wordle/wordle-parser.service';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class SlashCommandService implements OnModuleInit {
     private readonly discordClient: DiscordClientService,
     private readonly kickPollData: KickPollDataService,
     private readonly wordleStats: WordleStatsService,
+    private readonly wordleTracker: WordleTrackerService,
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -85,6 +87,17 @@ export class SlashCommandService implements OnModuleInit {
                   .addChoices(
                     ...WORDLE_GAME_TYPES.map((t) => ({ name: t, value: t })),
                   ),
+              ),
+          )
+          .addSubcommand((sub) =>
+            sub
+              .setName('reevaluate')
+              .setDescription('Reevaluează un mesaj wordle după ID')
+              .addStringOption((opt) =>
+                opt
+                  .setName('messageid')
+                  .setDescription('ID-ul mesajului Discord')
+                  .setRequired(true),
               ),
           ),
       );
@@ -164,6 +177,21 @@ export class SlashCommandService implements OnModuleInit {
     interaction: import('discord.js').ChatInputCommandInteraction,
     subcommand: string,
   ): Promise<void> {
+    if (subcommand === 'reevaluate') {
+      await interaction.deferReply({ ephemeral: true });
+      const messageId = interaction.options.getString('messageid', true);
+      try {
+        const result = await this.wordleTracker.reevaluateMessage(messageId);
+        await interaction.editReply({ content: result });
+      } catch (error) {
+        this.logger.error(`Error handling wordle reevaluate command: ${error}`);
+        await interaction.editReply({
+          content: '❌ A apărut o eroare. Încearcă din nou.',
+        });
+      }
+      return;
+    }
+
     if (subcommand !== 'streaks') return;
 
     const gameType = interaction.options.getString('gametype') ?? 'Wordle';

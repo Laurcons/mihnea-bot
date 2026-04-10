@@ -25,6 +25,6 @@ import { WordleCommentaryService } from './wordle-commentary.service';
     WordleStreakInvalidatorService,
     WordleCommentaryService,
   ],
-  exports: [WordleStatsService],
+  exports: [WordleStatsService, WordleTrackerService],
 })
 export class WordleModule {}

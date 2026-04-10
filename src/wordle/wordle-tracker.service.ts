@@ -195,6 +195,55 @@ export class WordleTrackerService implements OnModuleInit {
     );
   }
 
+  async reevaluateMessage(messageId: string): Promise<string> {
+    const channel = await this.discordClient.fetchTextChannel(
+      this.botConfig.getDiscordGuildId(),
+      this.wordleChannelId,
+    );
+    if (!channel) return '❌ Nu am găsit canalul de wordle.';
+
+    let message: Message;
+    try {
+      message = await channel.messages.fetch(messageId);
+    } catch {
+      return '❌ Nu am găsit mesajul cu ID-ul dat.';
+    }
+
+    const results = this.parser.parse(message.content);
+    if (results.length === 0)
+      return '❌ Nu am găsit niciun rezultat wordle în mesaj.';
+
+    const lines: string[] = [];
+    for (const result of results) {
+      if (
+        !this.botConfig.getIsWordlePuzzleDayIgnored() &&
+        !this.parser.isCurrentPuzzle(result.gameType, result.puzzleDay)
+      ) {
+        lines.push(
+          `⚠️ **${result.gameType} #${result.puzzleDay}**: nu îi puzzleul zilei`,
+        );
+        continue;
+      }
+
+      await this.wordleResultModel.deleteOne({
+        userId: message.author.id,
+        gameType: result.gameType,
+        puzzleDay: result.puzzleDay,
+      });
+
+      const error = await this.saveResult(message, result);
+      if (error) {
+        lines.push(`❌ **${result.gameType} #${result.puzzleDay}**: ${error}`);
+      } else {
+        lines.push(
+          `✅ **${result.gameType} #${result.puzzleDay}**: reevaluat cu succes`,
+        );
+      }
+    }
+
+    return lines.join('\n');
+  }
+
   private async saveResult(
     message: Message,
     result: ParsedWordleResult,
@@ -205,7 +254,7 @@ export class WordleTrackerService implements OnModuleInit {
       await this.wordleResultModel.create({
         userId,
         username,
-        loggedAt: new Date(),
+        loggedAt: message.createdAt,
         gameType: result.gameType,
         puzzleDay: result.puzzleDay,
         tries: result.tries,
