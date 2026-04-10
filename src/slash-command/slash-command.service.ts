@@ -4,6 +4,7 @@ import {
   Routes,
   SlashCommandBuilder,
   RESTPostAPIChatInputApplicationCommandsJSONBody,
+  MessageFlags,
 } from 'discord.js';
 import { BotConfigService } from '../bot-config.service';
 import { DiscordClientService } from '../discord-client.service';
@@ -141,12 +142,12 @@ export class SlashCommandService implements OnModuleInit {
           await interaction.reply({
             content:
               '✅ Te-ai înscris la votul zilnic de kick! Succes... o să ai nevoie.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         } else {
           await interaction.reply({
             content: '⚠️ Ești deja înscris la votul zilnic de kick.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       } else if (subcommand === 'optout') {
@@ -155,12 +156,12 @@ export class SlashCommandService implements OnModuleInit {
         if (removed) {
           await interaction.reply({
             content: '✅ Te-ai retras de la votul zilnic de kick. Lașule.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         } else {
           await interaction.reply({
             content: '⚠️ Nu ești înscris la votul zilnic de kick.',
-            ephemeral: true,
+            flags: MessageFlags.Ephemeral,
           });
         }
       }
@@ -168,7 +169,7 @@ export class SlashCommandService implements OnModuleInit {
       this.logger.error(`Error handling kickvote command: ${error}`);
       await interaction.reply({
         content: '❌ A apărut o eroare. Încearcă din nou.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   }
@@ -178,7 +179,7 @@ export class SlashCommandService implements OnModuleInit {
     subcommand: string,
   ): Promise<void> {
     if (subcommand === 'reevaluate') {
-      await interaction.deferReply({ ephemeral: true });
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
       const messageId = interaction.options.getString('messageid', true);
       try {
         const result = await this.wordleTracker.reevaluateMessage(messageId);
@@ -222,7 +223,7 @@ export class SlashCommandService implements OnModuleInit {
       this.logger.error(`Error handling wordle streaks command: ${error}`);
       await interaction.reply({
         content: '❌ A apărut o eroare. Încearcă din nou.',
-        ephemeral: true,
+        flags: MessageFlags.Ephemeral,
       });
     }
   }
