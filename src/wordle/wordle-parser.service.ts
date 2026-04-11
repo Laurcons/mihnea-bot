@@ -114,6 +114,24 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
     maxTries: 6,
     anchor: { date: '2026-04-06', puzzleDay: 1538 },
   },
+  {
+    gameType: 'Polygonle',
+    headerRegex: /^#Polygonle (\d+) (\d)\/(\d).$/im,
+    emojiLineRegex: /^[ ⬢︎ ◥︎ ◼︎◤︎◢︎◥︎🟥🟨🟩🟪⬛]+$/u,
+    extractPuzzleDay: (m) => parseInt(m[1], 10),
+    extractTries: (m) => parseInt(m[2], 10),
+    maxTries: 6,
+    anchor: { date: '2026-04-11', puzzleDay: 1350 },
+  },
+  {
+    gameType: 'PolygonleMini',
+    headerRegex: /^#PolygonleMini (\d+) (\d)\/(\d).$/im,
+    emojiLineRegex: /^[ ◆︎  ⬢︎ ◥︎ ◼︎◤︎◢︎◥︎🟥🟨🟩🟪⬛]+$/u,
+    extractPuzzleDay: (m) => parseInt(m[1], 10),
+    extractTries: (m) => parseInt(m[2], 10),
+    maxTries: 6,
+    anchor: { date: '2026-04-11', puzzleDay: 1104 },
+  },
 ];
 
 export const WORDLE_GAME_TYPES: string[] = [
