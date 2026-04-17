@@ -6,13 +6,18 @@ import {
   GatewayIntentBits,
   Interaction,
   Message,
+  MessageReaction,
+  PartialMessageReaction,
+  PartialUser,
   Partials,
   TextChannel,
+  User,
 } from 'discord.js';
 import { BotConfigService } from './bot-config.service';
 
 type MessageHandler = (message: Message) => void;
 type InteractionHandler = (interaction: Interaction) => void;
+type ReactionHandler = (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => void;
 
 @Injectable()
 export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
@@ -26,8 +31,9 @@ export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages,
         GatewayIntentBits.MessageContent,
+        GatewayIntentBits.GuildMessageReactions,
       ],
-      partials: [Partials.Channel, Partials.Message],
+      partials: [Partials.Channel, Partials.Message, Partials.Reaction],
     });
   }
 
@@ -54,6 +60,10 @@ export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
 
   onInteraction(handler: InteractionHandler): void {
     this.client.on(Events.InteractionCreate, handler);
+  }
+
+  onReactionAdd(handler: ReactionHandler): void {
+    this.client.on(Events.MessageReactionAdd, handler);
   }
 
   getClient(): Client {

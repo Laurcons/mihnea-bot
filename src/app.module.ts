@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { MongooseModule } from '@nestjs/mongoose';
 import { CoreModule } from './core.module';
 import { MentionResponderService } from './mention-responder.service';
+import { ReactionDefenseService } from './reaction-defense.service';
 import { KickPollModule } from './kick-poll/kick-poll.module';
 import { WordleModule } from './wordle/wordle.module';
 import { SlashCommandModule } from './slash-command/slash-command.module';
@@ -27,6 +28,6 @@ import { SlashCommandModule } from './slash-command/slash-command.module';
     SlashCommandModule,
   ],
   controllers: [],
-  providers: [MentionResponderService],
+  providers: [MentionResponderService, ReactionDefenseService],
 })
 export class AppModule {}

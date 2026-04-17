@@ -77,6 +77,10 @@ export class BotConfigService {
     return this.getRequired('MONGODB_URL');
   }
 
+  getHostileReactionBotId(): string | null {
+    return this.configService.get<string>('HOSTILE_REACTION_BOT_ID') ?? null;
+  }
+
   getIsWordlePuzzleDayIgnored(): boolean {
     return (
       this.configService.get<string>('WORDLE_IGNORE_PUZZLE_DAY') === 'true'
