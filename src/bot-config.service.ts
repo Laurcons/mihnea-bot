@@ -57,6 +57,15 @@ export class BotConfigService {
       .filter(Boolean);
   }
 
+  getWhitelistChannel(): string | null {
+    const raw = this.configService.get<string>('DISCORD_WHITELIST_CHANNEL_ID');
+    if (!raw) {
+      return null;
+    }
+
+    return raw;
+  }
+
   getAdminUserId(): string | null {
     return this.configService.get<string>('DISCORD_ADMIN_USER_ID') ?? null;
   }
