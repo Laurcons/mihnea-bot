@@ -82,7 +82,7 @@ export class WordleTrackerService implements OnModuleInit {
     if (successfulResults.length > 0) {
       const chosen =
         successfulResults[Math.floor(Math.random() * successfulResults.length)];
-      const shouldReply = Math.random() < 0.1;
+      const shouldReply = Math.random() < 0.01;
       if (shouldReply) {
         void this.commentary.generateAndSendCommentary(message, chosen);
       }
