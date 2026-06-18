@@ -1,0 +1,6 @@
+[Unit]
+Description=Reload nftables ruleset
+
+[Service]
+Type=oneshot
+ExecStart=@nft@/sbin/nft -f /etc/nftables.conf
