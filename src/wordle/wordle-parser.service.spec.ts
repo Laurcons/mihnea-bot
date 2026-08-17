@@ -70,6 +70,48 @@ describe('WordleParserService', () => {
       expect(result.tries).toBeNull();
     });
 
+    // A perfect score reads "(spot on)" rather than "N orders of magnitude
+    // off", which the original pattern required literally.
+    it('parses a perfect score', () => {
+      const content = [
+        'Magnitudle - Daily Estimation Game',
+        '',
+        'Score: 100/100 (spot on)',
+        '',
+        '🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥 https://magnitudle.com/daily',
+      ].join('\n');
+
+      const [result] = parser.parse(content, postedAt);
+
+      expect(result.score).toBe(100);
+      expect(result.scoreMax).toBe(100);
+      expect(result.attempts).toEqual(['🟥🟥🟥🟥🟥🟥🟥🟥🟥🟥']);
+    });
+
+    it('parses a singular "1 order of magnitude off"', () => {
+      const content = [
+        'Magnitudle - Daily Estimation Game',
+        '',
+        'Score: 70/100 (1 order of magnitude off)',
+        '',
+        '🟥🟥🟥🟥🟥🟥🟥◻️◻️◻️',
+      ].join('\n');
+
+      expect(parser.parse(content, postedAt)[0].score).toBe(70);
+    });
+
+    it('parses a scoreline with no parenthetical at all', () => {
+      const content = [
+        'Magnitudle - Daily Estimation Game',
+        '',
+        'Score: 55/100',
+        '',
+        '🟥🟥🟥🟥🟥◻️◻️◻️◻️◻️',
+      ].join('\n');
+
+      expect(parser.parse(content, postedAt)[0].score).toBe(55);
+    });
+
     it('derives the puzzle day from when the message was posted', () => {
       const content = [
         'Magnitudle - Daily Estimation Game',

@@ -162,8 +162,11 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
     // counts as today's. Duplicate protection rests on the unique index.
     gameType: 'Magnitudle',
     titleRegex: /^Magnitudle\s*[-–—]\s*Daily Estimation Game$/i,
-    headerRegex:
-      /^Score:\s*(\d+)\/100\s*\([\d.]+\s+orders?\s+of\s+magnitude\s+off\)$/im,
+    // The parenthetical is not always "N orders of magnitude off" — a perfect
+    // score reads "(spot on)" — so it is matched loosely and treated as
+    // optional. Safe to be permissive here because titleRegex already pins the
+    // game down on the preceding line.
+    headerRegex: /^Score:\s*(\d+)\/100(?:\s*\([^)]*\))?$/im,
     emojiLineRegex: /^(?:🟥|◻️)+(?:\s+https?:\/\/\S+)?$/u,
     extractPuzzleDay: (_, ref) => 1 + daysBetween('2026-01-01', ref),
     // Scored out of 100 rather than in guesses; see extractScore.

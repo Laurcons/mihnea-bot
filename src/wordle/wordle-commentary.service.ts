@@ -37,6 +37,10 @@ export class WordleCommentaryService {
     if (score !== null && scoreMax !== null && scoreMax > 0) {
       const pct = (score / scoreMax) * 100;
 
+      if (pct >= 100) {
+        return `Userul a nimerit perfect, scor maxim ${score} din ${scoreMax}. Fa un comentariu sarcastic dar laudativ, sugerand ca sigur a avut noroc sau ca mama lui i-a suflat raspunsul.`;
+      }
+
       if (pct >= 90) {
         return `Userul a nimerit aproape perfect, cu un scor de ${score} din ${scoreMax}. Fa un comentariu sarcastic dar oarecum laudativ, sugerand ca a mostenit ceva creier de la mama lui.`;
       }
