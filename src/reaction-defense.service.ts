@@ -25,8 +25,8 @@ export class ReactionDefenseService implements OnModuleInit {
       );
       return;
     }
-    this.discordClient.onReactionAdd(async (reaction, user) => {
-      await this.handleReaction(reaction, user, hostileId);
+    this.discordClient.onReactionAdd((reaction, user) => {
+      void this.handleReaction(reaction, user, hostileId);
     });
   }
 

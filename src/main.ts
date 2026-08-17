@@ -16,17 +16,20 @@ async function bootstrap() {
   logger.log('Kick poll at 18:00, results processed at 19:00');
 
   // Keep the application running
-  process.on('SIGINT', async () => {
+  const shutdown = async () => {
     logger.log('Shutting down...');
     await app.close();
     process.exit(0);
-  });
+  };
 
-  process.on('SIGTERM', async () => {
-    logger.log('Shutting down...');
-    await app.close();
-    process.exit(0);
-  });
+  process.on('SIGINT', () => void shutdown());
+  process.on('SIGTERM', () => void shutdown());
 }
 
-bootstrap();
+bootstrap().catch((error: unknown) => {
+  // Without this a boot failure surfaced only as an unhandled rejection.
+  new Logger('Bootstrap').error(
+    `Failed to start: ${error instanceof Error ? (error.stack ?? error.message) : String(error)}`,
+  );
+  process.exit(1);
+});

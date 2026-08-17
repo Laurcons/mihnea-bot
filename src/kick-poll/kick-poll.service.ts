@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { TextChannel } from 'discord.js';
+import { Message, TextChannel } from 'discord.js';
 import { BotConfigService } from '../bot-config.service';
 import { DiscordClientService } from '../discord-client.service';
 import { KickPollDataService } from './kick-poll-data.service';
@@ -30,7 +30,7 @@ export class KickPollService {
     }
 
     // Check if there are enough kickable users
-    const kickableUsers = await this.kickPollData.getKickableUsers();
+    const kickableUsers = this.kickPollData.getKickableUsers();
     if (kickableUsers.length < 2) {
       this.logger.log(
         `Not enough kickable users (${kickableUsers.length}), skipping poll`,
@@ -39,7 +39,7 @@ export class KickPollService {
     }
 
     // Select random user
-    const selectedUser = await this.kickPollData.getRandomKickableUser();
+    const selectedUser = this.kickPollData.getRandomKickableUser();
     if (!selectedUser) {
       this.logger.error('Failed to select random user');
       return;
@@ -99,7 +99,7 @@ export class KickPollService {
   }
 
   async processPollResult(): Promise<void> {
-    const activePoll = await this.kickPollData.getActivePoll();
+    const activePoll = this.kickPollData.getActivePoll();
     if (!activePoll) {
       this.logger.log('No active poll to process');
       return;
@@ -112,7 +112,7 @@ export class KickPollService {
     }
 
     // Fetch the poll message
-    let pollMessage;
+    let pollMessage: Message;
     try {
       pollMessage = await channel.messages.fetch(activePoll.messageId);
     } catch (error) {

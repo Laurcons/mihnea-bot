@@ -1,5 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import {
+  ChatInputCommandInteraction,
+  Interaction,
   REST,
   Routes,
   SlashCommandBuilder,
@@ -107,28 +109,32 @@ export class SlashCommandService implements OnModuleInit {
   }
 
   private setupInteractionHandler(): void {
-    this.discordClient.onInteraction(async (interaction) => {
-      if (!interaction.isChatInputCommand()) {
-        return;
-      }
-
-      if (interaction.commandName !== 'mihneainator') {
-        return;
-      }
-
-      const subcommandGroup = interaction.options.getSubcommandGroup();
-      const subcommand = interaction.options.getSubcommand();
-
-      if (subcommandGroup === 'kickvote') {
-        await this.handleKickVoteCommand(interaction, subcommand);
-      } else if (subcommandGroup === 'wordle') {
-        await this.handleWordleCommand(interaction, subcommand);
-      }
+    this.discordClient.onInteraction((interaction) => {
+      void this.handleInteraction(interaction);
     });
   }
 
+  private async handleInteraction(interaction: Interaction): Promise<void> {
+    if (!interaction.isChatInputCommand()) {
+      return;
+    }
+
+    if (interaction.commandName !== 'mihneainator') {
+      return;
+    }
+
+    const subcommandGroup = interaction.options.getSubcommandGroup();
+    const subcommand = interaction.options.getSubcommand();
+
+    if (subcommandGroup === 'kickvote') {
+      await this.handleKickVoteCommand(interaction, subcommand);
+    } else if (subcommandGroup === 'wordle') {
+      await this.handleWordleCommand(interaction, subcommand);
+    }
+  }
+
   private async handleKickVoteCommand(
-    interaction: import('discord.js').ChatInputCommandInteraction,
+    interaction: ChatInputCommandInteraction,
     subcommand: string,
   ): Promise<void> {
     const userId = interaction.user.id;
@@ -175,7 +181,7 @@ export class SlashCommandService implements OnModuleInit {
   }
 
   private async handleWordleCommand(
-    interaction: import('discord.js').ChatInputCommandInteraction,
+    interaction: ChatInputCommandInteraction,
     subcommand: string,
   ): Promise<void> {
     if (subcommand === 'reevaluate') {

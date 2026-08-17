@@ -73,11 +73,11 @@ export class KickPollDataService implements OnModuleInit {
 
   // Kickable Users Methods
 
-  async getKickableUsers(): Promise<KickableUser[]> {
+  getKickableUsers(): KickableUser[] {
     return [...this.data.kickableUsers];
   }
 
-  async getRandomKickableUser(): Promise<KickableUser | null> {
+  getRandomKickableUser(): KickableUser | null {
     if (this.data.kickableUsers.length < 2) {
       return null;
     }
@@ -117,13 +117,13 @@ export class KickPollDataService implements OnModuleInit {
     return false;
   }
 
-  async isUserKickable(userId: string): Promise<boolean> {
+  isUserKickable(userId: string): boolean {
     return this.data.kickableUsers.some((user) => user.userId === userId);
   }
 
   // Active Poll Methods
 
-  async getActivePoll(): Promise<ActivePoll | null> {
+  getActivePoll(): ActivePoll | null {
     return this.data.activePoll;
   }
 
@@ -144,7 +144,7 @@ export class KickPollDataService implements OnModuleInit {
     await this.saveData();
   }
 
-  async getLastPollResult(): Promise<PollResult | null> {
+  getLastPollResult(): PollResult | null {
     return this.data.lastPollResult;
   }
 }

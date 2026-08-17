@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { ParsedWordleResult } from './types/wordle.types';
 import dayjs from 'dayjs';
 
@@ -50,6 +50,34 @@ function cleanAttempt(line: string): string {
   ).trim();
 }
 
+/*
+ * Grid patterns are written as alternations with explicit escapes rather than
+ * character classes. A class like [⬜️🟩] silently decomposes into three
+ * members — ⬜, U+FE0F and 🟩 — so it matches a stray variation selector on
+ * its own and does not require the composed sequence. Escapes also keep the
+ * exotic em-spaces in the Polygonle grids visible instead of invisible.
+ *
+ * Variation selectors are optional throughout: clients disagree about
+ * emitting them.
+ */
+
+/** 🟥, 🔟, and the 1-9 keycap sequences (digit + FE0F + COMBINING KEYCAP). */
+const QUORDLE_GRID = /^(?:\u{1F7E5}|\u{1F51F}|[1-9]\uFE0F?\u20E3)+$/u;
+
+/** The white square (with its variation selector) and the green square. */
+const LETTERLE_GRID = /^(?:\u2B1C\uFE0F?|\u{1F7E9})+$/u;
+
+/**
+ * Em-spaces (U+2004-2006), the geometric shapes carrying a text-presentation
+ * selector (U+FE0E), and the colour squares.
+ */
+const POLYGONLE_GRID =
+  /^(?:[\u2004\u2005\u2006]|[\u2B22\u25E5\u25FC\u25E4\u25E2]\uFE0E?|[\u{1F7E5}\u{1F7E8}\u{1F7E9}\u{1F7EA}\u2B1B])+$/u;
+
+/** As Polygonle, plus the diamond (U+25C6) used by the mini grids. */
+const POLYGONLE_MINI_GRID =
+  /^(?:[\u2004\u2005\u2006]|[\u25C6\u2B22\u25E5\u25FC\u25E4\u25E2]\uFE0E?|[\u{1F7E5}\u{1F7E8}\u{1F7E9}\u{1F7EA}\u2B1B])+$/u;
+
 // Puzzle #1 launch dates used as anchors.
 // Verify/update puzzleDay values if the game ever resets or skips numbers.
 const GAME_DEFINITIONS: WordleGameDefinition[] = [
@@ -74,7 +102,7 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
   {
     gameType: 'QuordleClassic',
     headerRegex: /^🙂\s+Daily\s+Quordle\s+(\d+)$/im,
-    emojiLineRegex: /^[🟥🔟9️⃣8️⃣7️⃣6️⃣5️⃣4️⃣3️⃣2️⃣1️⃣]+$/u,
+    emojiLineRegex: QUORDLE_GRID,
     extractPuzzleDay: (m) => parseInt(m[1], 10),
     extractTries: () => null,
     maxTries: 10,
@@ -83,7 +111,7 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
   {
     gameType: 'QuordleChill',
     headerRegex: /^😎\s+Daily\s+Chill\s+(\d+)$/im,
-    emojiLineRegex: /^[🟥🔟9️⃣8️⃣7️⃣6️⃣5️⃣4️⃣3️⃣2️⃣1️⃣]+$/u,
+    emojiLineRegex: QUORDLE_GRID,
     extractPuzzleDay: (m) => parseInt(m[1], 10),
     extractTries: () => null,
     maxTries: 10,
@@ -92,7 +120,7 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
   {
     gameType: 'QuordleExtreme',
     headerRegex: /^🥵\s+Daily\s+Extreme\s+(\d+)$/im,
-    emojiLineRegex: /^[🟥🔟9️⃣8️⃣7️⃣6️⃣5️⃣4️⃣3️⃣2️⃣1️⃣]+$/u,
+    emojiLineRegex: QUORDLE_GRID,
     extractPuzzleDay: (m) => parseInt(m[1], 10),
     extractTries: () => null,
     maxTries: 6,
@@ -113,7 +141,7 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
   {
     gameType: 'Letterle',
     headerRegex: /^Letterle\s+(\d+)\/26$/im,
-    emojiLineRegex: /^[⬜️🟩]+$/u,
+    emojiLineRegex: LETTERLE_GRID,
     extractPuzzleDay: (_, ref) => 1 + daysBetween('2026-01-01', ref),
     extractTries: (_, attempts) => attempts.length,
     maxTries: 26,
@@ -151,7 +179,7 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
   {
     gameType: 'Polygonle',
     headerRegex: /^#Polygonle (\d+) (\d)\/(\d).$/im,
-    emojiLineRegex: /^[ ⬢︎ ◥︎ ◼︎◤︎◢︎◥︎🟥🟨🟩🟪⬛]+$/u,
+    emojiLineRegex: POLYGONLE_GRID,
     extractPuzzleDay: (m) => parseInt(m[1], 10),
     extractTries: (m) => parseInt(m[2], 10),
     maxTries: 6,
@@ -160,7 +188,7 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
   {
     gameType: 'PolygonleMini',
     headerRegex: /^#PolygonleMini (\d+) (\d)\/(\d).$/im,
-    emojiLineRegex: /^[ ◆︎  ⬢︎ ◥︎ ◼︎◤︎◢︎◥︎🟥🟨🟩🟪⬛]+$/u,
+    emojiLineRegex: POLYGONLE_MINI_GRID,
     extractPuzzleDay: (m) => parseInt(m[1], 10),
     extractTries: (m) => parseInt(m[2], 10),
     maxTries: 6,

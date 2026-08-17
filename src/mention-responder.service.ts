@@ -32,7 +32,7 @@ export class MentionResponderService {
       this.botConfig.getBotAllowedChannelIds(),
     );
     this.adminUserId = this.botConfig.getAdminUserId();
-    this.discordClient.onMessage((message) => this.handleMessage(message));
+    this.discordClient.onMessage((message) => void this.handleMessage(message));
   }
 
   private async handleMessage(message: Message): Promise<void> {

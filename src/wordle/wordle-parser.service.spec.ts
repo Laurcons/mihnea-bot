@@ -274,6 +274,74 @@ describe('WordleParserService', () => {
     );
   });
 
+  // The grid patterns for these games were rewritten from character classes
+  // to alternations; these pin that the rewrite kept them parsing. Written
+  // with escapes because the originals mixed keycap sequences, variation
+  // selectors and em-spaces that are invisible in a source file.
+  describe('rewritten grid patterns', () => {
+    const postedAt = new Date('2026-04-11T12:00:00Z');
+
+    it('parses a Quordle keycap grid', () => {
+      const grid = `\u{1F7E5}4️⃣\u{1F51F}`;
+      const [result] = parser.parse(
+        `\u{1F642} Daily Quordle 1530\n${grid}`,
+        postedAt,
+      );
+
+      expect(result.gameType).toBe('QuordleClassic');
+      expect(result.attempts).toEqual([grid]);
+    });
+
+    it('parses a Quordle keycap grid without variation selectors', () => {
+      const grid = `\u{1F7E5}4⃣`;
+      const [result] = parser.parse(
+        `\u{1F642} Daily Quordle 1530\n${grid}`,
+        postedAt,
+      );
+
+      expect(result.attempts).toEqual([grid]);
+    });
+
+    it('parses a Letterle grid', () => {
+      const grid = `⬜️⬜️\u{1F7E9}`;
+      const [result] = parser.parse(`Letterle 3/26\n${grid}`, postedAt);
+
+      expect(result.gameType).toBe('Letterle');
+      expect(result.attempts).toEqual([grid]);
+    });
+
+    it('parses a Polygonle shape row and colour row', () => {
+      const shapes = `\u2B22\uFE0E\u2004\u25E5\uFE0E\u2005\u25FC\uFE0E`;
+      const colours = `\u{1F7E5}\u{1F7E8}\u{1F7E9}`;
+      const [result] = parser.parse(
+        `#Polygonle 1350 3/6.\n${shapes}\n${colours}`,
+        postedAt,
+      );
+
+      expect(result.gameType).toBe('Polygonle');
+      expect(result.attempts).toEqual([shapes, colours]);
+    });
+
+    it('parses a PolygonleMini grid containing a diamond', () => {
+      const shapes = `\u25C6\uFE0E\u2005\u2B22\uFE0E`;
+      const [result] = parser.parse(
+        `#PolygonleMini 1104 2/6.\n${shapes}`,
+        postedAt,
+      );
+
+      expect(result.gameType).toBe('PolygonleMini');
+      expect(result.attempts).toEqual([shapes]);
+    });
+
+    // The old character classes decomposed into individual members, so a bare
+    // variation selector counted as a valid grid line.
+    it('no longer accepts a lone variation selector as a grid', () => {
+      const [result] = parser.parse(`Letterle 3/26\n️`, postedAt);
+
+      expect(result.attempts).toEqual([]);
+    });
+  });
+
   describe('other games', () => {
     const postedAt = new Date('2026-04-03T12:00:00Z');
 

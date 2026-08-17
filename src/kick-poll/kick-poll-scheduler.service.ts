@@ -1,5 +1,5 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
+
 import { KickPollService } from './kick-poll.service';
 
 @Injectable()
