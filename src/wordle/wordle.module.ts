@@ -9,7 +9,7 @@ import {
   MigrationMarker,
   MigrationMarkerSchema,
 } from './models/migration-marker.schema';
-import { MagnitudleBackfillService } from './magnitudle-backfill.service';
+import { WordleBackfillService } from './wordle-backfill.service';
 import { WordleParserService } from './wordle-parser.service';
 import { WordleTrackerService } from './wordle-tracker.service';
 import { WordleStatsService } from './wordle-stats.service';
@@ -36,7 +36,7 @@ import { WordleDailyResetService } from './wordle-daily-reset.service';
     WordleCommentaryService,
     WordleChannelAccessService,
     WordleDailyResetService,
-    MagnitudleBackfillService,
+    WordleBackfillService,
   ],
   exports: [WordleStatsService, WordleTrackerService],
 })
