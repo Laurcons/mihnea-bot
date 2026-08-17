@@ -29,7 +29,28 @@ export class WordleCommentaryService {
   }
 
   private buildSystemInstruction(result: ParsedWordleResult): string {
-    const { tries, maxTries } = result;
+    const { tries, maxTries, score, scoreMax } = result;
+
+    // Scored games have to be handled before the tries branches: they carry
+    // tries === null, which would otherwise read as a total loss, and their
+    // scale runs the opposite way (higher is better).
+    if (score !== null && scoreMax !== null && scoreMax > 0) {
+      const pct = (score / scoreMax) * 100;
+
+      if (pct >= 90) {
+        return `Userul a nimerit aproape perfect, cu un scor de ${score} din ${scoreMax}. Fa un comentariu sarcastic dar oarecum laudativ, sugerand ca a mostenit ceva creier de la mama lui.`;
+      }
+
+      if (pct >= 60) {
+        return `Userul a luat un scor decent, ${score} din ${scoreMax}, dar nimic de laudat. Fii sarcastic si baga si mama lui in vorba.`;
+      }
+
+      if (pct >= 30) {
+        return `Userul a luat un scor mediocru, ${score} din ${scoreMax}. Ironizeaza-l ca habar n-are sa aprecieze marimi si baga si mama lui in vorba.`;
+      }
+
+      return `Userul a luat un scor jalnic, ${score} din ${scoreMax}, adica a fost departe rau. Fii cum esti tu si adreseaza-i ceva despre cat de departe a fost, comparand cu mama lui.`;
+    }
 
     if (tries === null) {
       return 'Userul a pierdut complet, nu a reusit sa ghiceasca. Fii cum esti tu si adreseaza-i ceva.';
@@ -56,11 +77,13 @@ export class WordleCommentaryService {
     const caseInstruction = this.buildSystemInstruction(result);
     const systemPrompt = `${BASE_SYSTEM_PROMPT}\n\nComentezi rezultatele de Wordle ale userilor de pe server. ${caseInstruction} Raspunde scurt, maxim 1-2 propozitii.`;
 
-    const triesDisplay =
-      result.tries !== null
-        ? `${result.tries}/${result.maxTries}`
-        : `X/${result.maxTries}`;
-    const userPrompt = `@${username} a postat rezultatul la ${result.gameType}: ${triesDisplay}. Comenteaza.`;
+    const resultDisplay =
+      result.score !== null && result.scoreMax !== null
+        ? `${result.score}/${result.scoreMax}`
+        : result.tries !== null
+          ? `${result.tries}/${result.maxTries}`
+          : `X/${result.maxTries}`;
+    const userPrompt = `@${username} a postat rezultatul la ${result.gameType}: ${resultDisplay}. Comenteaza.`;
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',

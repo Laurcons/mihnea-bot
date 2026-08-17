@@ -11,13 +11,33 @@ interface PuzzleDayAnchor {
 
 interface WordleGameDefinition {
   gameType: string;
+  /**
+   * Optional line that must appear immediately before the header (one blank
+   * line between is allowed). For games whose share text splits the game name
+   * and the scoreline across two lines.
+   */
+  titleRegex?: RegExp;
   headerRegex: RegExp;
   emojiLineRegex: RegExp;
-  extractPuzzleDay: (match: RegExpMatchArray) => number;
+  /**
+   * `referenceDate` is the YYYY-MM-DD Romanian date the result was posted on.
+   * Games whose share text carries no puzzle number or date have to fall back
+   * to it.
+   */
+  extractPuzzleDay: (match: RegExpMatchArray, referenceDate: string) => number;
   extractTries: (match: RegExpMatchArray, attempts: string[]) => number | null;
   maxTries: number;
+  /** For games scored on a scale rather than a number of guesses. */
+  extractScore?: (match: RegExpMatchArray) => number | null;
+  maxScore?: number;
   anchor: PuzzleDayAnchor;
 }
+
+/**
+ * Some games append their share link to the last grid line rather than putting
+ * it on its own line. Stripped so it never lands in the stored grid.
+ */
+const TRAILING_URL = /\s*https?:\/\/\S+$/;
 
 // Puzzle #1 launch dates used as anchors.
 // Verify/update puzzleDay values if the game ever resets or skips numbers.
@@ -83,7 +103,7 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
     gameType: 'Letterle',
     headerRegex: /^Letterle\s+(\d+)\/26$/im,
     emojiLineRegex: /^[⬜️🟩]+$/u,
-    extractPuzzleDay: () => 1 + daysBetween('2026-01-01', getTodayInRomania()),
+    extractPuzzleDay: (_, ref) => 1 + daysBetween('2026-01-01', ref),
     extractTries: (_, attempts) => attempts.length,
     maxTries: 26,
     anchor: { date: '2026-01-01', puzzleDay: 1 },
@@ -135,14 +155,36 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
     maxTries: 6,
     anchor: { date: '2026-04-11', puzzleDay: 1104 },
   },
+  {
+    // Magnitudle's share text carries no puzzle number and no date, so the
+    // puzzle day is derived from when the message was posted. That makes
+    // isCurrentPuzzle a no-op for this game: a result posted today always
+    // counts as today's. Duplicate protection rests on the unique index.
+    gameType: 'Magnitudle',
+    titleRegex: /^Magnitudle\s*[-–—]\s*Daily Estimation Game$/i,
+    headerRegex:
+      /^Score:\s*(\d+)\/100\s*\([\d.]+\s+orders?\s+of\s+magnitude\s+off\)$/im,
+    emojiLineRegex: /^(?:🟥|◻️)+(?:\s+https?:\/\/\S+)?$/u,
+    extractPuzzleDay: (_, ref) => 1 + daysBetween('2026-01-01', ref),
+    // Scored out of 100 rather than in guesses; see extractScore.
+    extractTries: () => null,
+    maxTries: 10,
+    extractScore: (m) => parseInt(m[1], 10),
+    maxScore: 100,
+    anchor: { date: '2026-01-01', puzzleDay: 1 },
+  },
 ];
 
 export const WORDLE_GAME_TYPES: string[] = [
   ...new Set(GAME_DEFINITIONS.map((d) => d.gameType)),
 ];
 
+function toRomanianDate(date: Date): string {
+  return dayjs(date).tz('Europe/Bucharest').format('YYYY-MM-DD');
+}
+
 function getTodayInRomania(): string {
-  return dayjs().tz('Europe/Bucharest').format('YYYY-MM-DD');
+  return toRomanianDate(new Date());
 }
 
 function daysBetween(fromDate: string, toDate: string): number {
@@ -177,8 +219,15 @@ export class WordleParserService {
     return false;
   }
 
-  parse(content: string): ParsedWordleResult[] {
+  /**
+   * `postedAt` is when the message was sent — used by games whose share text
+   * carries no puzzle identifier. Pass the real message timestamp (rather than
+   * letting it default to now) so reevaluations and backfills of older
+   * messages resolve to the right puzzle day.
+   */
+  parse(content: string, postedAt: Date = new Date()): ParsedWordleResult[] {
     const lines = content.split('\n').map((l) => l.trim());
+    const referenceDate = toRomanianDate(postedAt);
     const results: ParsedWordleResult[] = [];
     let i = 0;
 
@@ -186,13 +235,28 @@ export class WordleParserService {
       let matched = false;
 
       for (const definition of GAME_DEFINITIONS) {
-        const headerMatch = lines[i].match(definition.headerRegex);
+        // Definitions with a titleRegex have their scoreline on a later line;
+        // one blank line between the two is allowed.
+        let headerLine = i;
+        if (definition.titleRegex) {
+          if (!definition.titleRegex.test(lines[i])) continue;
+          headerLine = i + 1;
+          if (headerLine < lines.length && lines[headerLine] === '') {
+            headerLine++;
+          }
+          if (headerLine >= lines.length) continue;
+        }
+
+        const headerMatch = lines[headerLine].match(definition.headerRegex);
         if (!headerMatch) continue;
 
-        const puzzleDay = definition.extractPuzzleDay(headerMatch);
+        const puzzleDay = definition.extractPuzzleDay(
+          headerMatch,
+          referenceDate,
+        );
 
         // Skip one optional empty line between header and tries block
-        let triesStart = i + 1;
+        let triesStart = headerLine + 1;
         if (triesStart < lines.length && lines[triesStart] === '') {
           triesStart++;
         }
@@ -201,7 +265,7 @@ export class WordleParserService {
         const attempts: string[] = [];
         let j = triesStart;
         while (j < lines.length && definition.emojiLineRegex.test(lines[j])) {
-          attempts.push(lines[j]);
+          attempts.push(lines[j].replace(TRAILING_URL, ''));
           j++;
         }
 
@@ -211,6 +275,8 @@ export class WordleParserService {
           puzzleDay,
           tries,
           maxTries: definition.maxTries,
+          score: definition.extractScore?.(headerMatch) ?? null,
+          scoreMax: definition.maxScore ?? null,
           attempts,
         });
 

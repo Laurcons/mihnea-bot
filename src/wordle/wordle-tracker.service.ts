@@ -45,16 +45,20 @@ export class WordleTrackerService implements OnModuleInit {
     if (message.author.bot) return;
     if (message.channelId !== this.wordleChannelId) return;
 
-    const results = this.parser.parse(message.content);
+    const results = this.parser.parse(message.content, message.createdAt);
     if (results.length === 0) return;
 
     const failures: string[] = [];
     const successfulResults: ParsedWordleResult[] = [];
 
     for (const result of results) {
+      const outcome =
+        result.score !== null
+          ? `score=${result.score}/${result.scoreMax}`
+          : `tries=${result.tries ?? 'X'}/${result.maxTries}`;
       this.logger.log(
         `Parsed ${result.gameType} #${result.puzzleDay} from ${message.author.username} ` +
-          `(tries=${result.tries ?? 'X'}/${result.maxTries}, attempts=${result.attempts.length})`,
+          `(${outcome}, attempts=${result.attempts.length})`,
       );
 
       if (
@@ -112,7 +116,7 @@ export class WordleTrackerService implements OnModuleInit {
       return '❌ Nu am găsit mesajul cu ID-ul dat.';
     }
 
-    const results = this.parser.parse(message.content);
+    const results = this.parser.parse(message.content, message.createdAt);
     if (results.length === 0)
       return '❌ Nu am găsit niciun rezultat wordle în mesaj.';
 
@@ -162,6 +166,8 @@ export class WordleTrackerService implements OnModuleInit {
         puzzleDay: result.puzzleDay,
         tries: result.tries,
         maxTries: result.maxTries,
+        score: result.score,
+        scoreMax: result.scoreMax,
         attempts: result.attempts,
       });
 

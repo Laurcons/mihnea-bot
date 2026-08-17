@@ -1,4 +1,9 @@
-import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  OnModuleDestroy,
+  OnModuleInit,
+} from '@nestjs/common';
 import {
   ChannelType,
   Client,
@@ -17,7 +22,10 @@ import { BotConfigService } from './bot-config.service';
 
 type MessageHandler = (message: Message) => void;
 type InteractionHandler = (interaction: Interaction) => void;
-type ReactionHandler = (reaction: MessageReaction | PartialMessageReaction, user: User | PartialUser) => void;
+type ReactionHandler = (
+  reaction: MessageReaction | PartialMessageReaction,
+  user: User | PartialUser,
+) => void;
 
 @Injectable()
 export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
@@ -81,7 +89,6 @@ export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
       return null;
     }
 
-    return channel as TextChannel;
+    return channel;
   }
-
 }
