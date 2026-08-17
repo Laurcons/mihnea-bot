@@ -24,7 +24,11 @@ if (!clientId) {
 // - Kick Members (2) - for kick vote feature
 // - Create Instant Invite (1) - for rejoin links
 // - Manage Messages (8192) - for removing hostile bot reactions
-const permissions = 2048 + 1024 + 65536 + 2 + 1 + 8192;
+// - Manage Roles (268435456) - for the #todays-* channel overwrites. Prefer
+//   granting this per channel ("Manage Permissions" on each #todays-* channel)
+//   rather than server-wide; it is only requested here so a fresh install
+//   works out of the box.
+const permissions = 2048 + 1024 + 65536 + 2 + 1 + 8192 + 268435456;
 
 // Scopes:
 // - bot: basic bot functionality

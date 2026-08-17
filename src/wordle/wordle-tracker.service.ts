@@ -9,6 +9,7 @@ import { ParsedWordleResult } from './types/wordle.types';
 import { WordleResult } from './models/wordle-result.schema';
 import { WordleCommentaryService } from './wordle-commentary.service';
 import { WordleStreakService } from './wordle-streak.service';
+import { WordleChannelAccessService } from './wordle-channel-access.service';
 
 function isMongooseDuplicateKeyError(error: unknown): boolean {
   return (
@@ -30,6 +31,7 @@ export class WordleTrackerService implements OnModuleInit {
     private readonly parser: WordleParserService,
     private readonly commentary: WordleCommentaryService,
     private readonly streaks: WordleStreakService,
+    private readonly channelAccess: WordleChannelAccessService,
     @InjectModel(WordleResult.name)
     private readonly wordleResultModel: Model<WordleResult>,
   ) {}
@@ -191,6 +193,14 @@ export class WordleTrackerService implements OnModuleInit {
           result.puzzleDay,
         );
       }
+
+      // Only today's puzzle unlocks the discussion channel. A late submission
+      // for yesterday still counts for the streak but must not grant access,
+      // and grant() swallows its own errors so Discord cannot fail the save.
+      if (result.puzzleDay === todayPuzzleDay) {
+        void this.channelAccess.grant(userId, result.gameType);
+      }
+
       await message.react('✅');
       return null;
     } catch (error: unknown) {

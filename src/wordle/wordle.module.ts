@@ -16,6 +16,8 @@ import { WordleStatsService } from './wordle-stats.service';
 import { WordleStreakInvalidatorService } from './wordle-streak-invalidator.service';
 import { WordleStreakService } from './wordle-streak.service';
 import { WordleCommentaryService } from './wordle-commentary.service';
+import { WordleChannelAccessService } from './wordle-channel-access.service';
+import { WordleDailyResetService } from './wordle-daily-reset.service';
 
 @Module({
   imports: [
@@ -32,6 +34,8 @@ import { WordleCommentaryService } from './wordle-commentary.service';
     WordleStreakService,
     WordleStreakInvalidatorService,
     WordleCommentaryService,
+    WordleChannelAccessService,
+    WordleDailyResetService,
     MagnitudleBackfillService,
   ],
   exports: [WordleStatsService, WordleTrackerService],

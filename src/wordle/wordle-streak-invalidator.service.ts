@@ -1,5 +1,4 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron } from '@nestjs/schedule';
 import { WORDLE_GAME_TYPES } from './wordle-parser.service';
 import { WordleStreakService } from './wordle-streak.service';
 
@@ -9,9 +8,12 @@ export class WordleStreakInvalidatorService {
 
   constructor(private readonly streaks: WordleStreakService) {}
 
-  @Cron('0 0 * * *', { timeZone: 'Europe/Bucharest' })
+  /**
+   * Scheduled by WordleDailyResetService rather than carrying its own @Cron,
+   * so the daily jobs run in a defined order.
+   */
   async invalidateOutdatedStreaks(): Promise<void> {
-    this.logger.log('Running streak invalidation cron job');
+    this.logger.log('Running streak invalidation');
 
     for (const gameType of WORDLE_GAME_TYPES) {
       const modified = await this.streaks.invalidateStale(gameType);
