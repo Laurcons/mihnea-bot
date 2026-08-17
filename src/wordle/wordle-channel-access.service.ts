@@ -11,8 +11,19 @@ import {
 import { WordleResult } from './models/wordle-result.schema';
 import { channelNameFor, diffAccess } from './wordle-channel.util';
 
-const GRANT_REASON = 'Posted the daily result';
 const REVOKE_REASON = 'Daily reset';
+
+/**
+ * The type must be stated explicitly. Without it discord.js resolves the id
+ * against its Role and User caches purely to infer Role vs Member, and throws
+ * "Supplied parameter is not a User nor a Role" when the user is not cached —
+ * which is every user during the reconcile on boot, before any of them has
+ * been seen posting.
+ */
+const GRANT_OPTIONS = {
+  type: OverwriteType.Member,
+  reason: 'Posted the daily result',
+} as const;
 
 /**
  * Gates the per-game discussion channels: posting a result for today's puzzle
@@ -114,7 +125,7 @@ export class WordleChannelAccessService implements OnApplicationBootstrap {
       await channel.permissionOverwrites.edit(
         userId,
         { ViewChannel: true },
-        { reason: GRANT_REASON },
+        GRANT_OPTIONS,
       );
       this.logger.log(`Granted ${userId} access to #${channel.name}`);
     } catch (error: unknown) {
@@ -165,7 +176,7 @@ export class WordleChannelAccessService implements OnApplicationBootstrap {
         await channel.permissionOverwrites.edit(
           userId,
           { ViewChannel: true },
-          { reason: GRANT_REASON },
+          GRANT_OPTIONS,
         );
         granted++;
       } catch (error: unknown) {
