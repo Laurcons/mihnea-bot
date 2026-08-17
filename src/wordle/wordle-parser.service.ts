@@ -59,12 +59,15 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
     anchor: { date: '2026-04-03', puzzleDay: 613 },
   },
   {
-    gameType: 'QuordleChill',
+    gameType: 'QuordleExtreme',
     headerRegex: /^🥵\s+Daily\s+Extreme\s+(\d+)$/im,
     emojiLineRegex: /^[🟥🔟9️⃣8️⃣7️⃣6️⃣5️⃣4️⃣3️⃣2️⃣1️⃣]+$/u,
     extractPuzzleDay: (m) => parseInt(m[1], 10),
     extractTries: () => null,
     maxTries: 6,
+    // Inherited from the Daily Chill entry this was copy-pasted from; if
+    // Extreme results still get rejected as "not today's puzzle", this anchor
+    // needs re-deriving from a real Daily Extreme share.
     anchor: { date: '2026-04-03', puzzleDay: 613 },
   },
   {
@@ -109,8 +112,8 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
     gameType: 'Nerdle',
     headerRegex: /^nerdlegame\s+([\d,]+)\s+([X\d])\/6$/im,
     emojiLineRegex: /^[🟥🟨🟩🟪⬛]+$/u,
-    extractPuzzleDay: (m) => parseInt(m[1], 10),
-    extractTries: (m) => parseInt(m[2], 10),
+    extractPuzzleDay: (m) => parseInt(m[1].replace(/[,.]/g, ''), 10),
+    extractTries: (m) => (m[2] === 'X' ? null : parseInt(m[2], 10)),
     maxTries: 6,
     anchor: { date: '2026-04-06', puzzleDay: 1538 },
   },
