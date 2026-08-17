@@ -1,5 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { BotConfigService } from '../bot-config.service';
+import { OpenAiService } from '../openai.service';
 import { AiPollContent } from './kick-poll.types';
 
 const SYSTEM_PROMPT = `You are a dramatic medieval court announcer for a Discord server's daily "kick vote" ritual. Your job is to generate theatrical, over-the-top content that accuses a user of hilariously mundane "crimes" as if they were grave offenses.
@@ -90,7 +90,7 @@ const JSON_SCHEMA = {
 export class KickPollAiService {
   private readonly logger = new Logger(KickPollAiService.name);
 
-  constructor(private readonly botConfig: BotConfigService) {}
+  constructor(private readonly openAi: OpenAiService) {}
 
   async generatePollContent(username: string): Promise<AiPollContent> {
     try {
@@ -103,46 +103,11 @@ export class KickPollAiService {
   }
 
   private async callOpenAI(username: string): Promise<AiPollContent> {
-    const apiKey = this.botConfig.getOpenAIApiKey();
-    const model = this.botConfig.getOpenAIModel();
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        response_format: {
-          type: 'json_schema',
-          json_schema: JSON_SCHEMA,
-        },
-        messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
-          { role: 'user', content: `Username: ${username}` },
-        ],
-      }),
+    return this.openAi.chatJson<AiPollContent>({
+      system: SYSTEM_PROMPT,
+      user: `Username: ${username}`,
+      jsonSchema: JSON_SCHEMA,
     });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      throw new Error(
-        `OpenAI API error: ${response.status} ${response.statusText} - ${errorBody}`,
-      );
-    }
-
-    const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-
-    const content = payload.choices?.[0]?.message?.content;
-
-    if (!content) {
-      throw new Error('OpenAI returned an empty response');
-    }
-
-    return JSON.parse(content) as AiPollContent;
   }
 
   private validateAndTruncate(

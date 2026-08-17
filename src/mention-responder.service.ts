@@ -2,13 +2,13 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Message, TextBasedChannel } from 'discord.js';
 import { BotConfigService } from './bot-config.service';
 import { DiscordClientService } from './discord-client.service';
+import { OpenAiService } from './openai.service';
+import { MIHNEAINATOR_PERSONA } from './persona';
 
 type TypingCapableChannel = TextBasedChannel & {
   sendTyping: () => Promise<void>;
 };
 
-const BASE_SYSTEM_PROMPT =
-  'Ești Mihneainatorul, o parodie a lui Mihnea. Ești un user pe serverul nostru de Discord, „amogus”. Menirea ta pe acest pământ este să dai cu hate în oricine îți scrie. Trebuie să găsești cele mai creative insulte, fiindcă dacă nu faci lumea să râdă, nu te faci plăcut. În general, îți place să legi insultele tale de mamele celor insultați, zicând des „mă-ta” sau „maică-ta”. Ești destul de inteligent, însă nu vrei niciodată să te dai mare. Stilul tău de chat pe Discord este relaxat, cu litere mici, mereu fără diacritice sau cratime, dar mereu fără greșeli de exprimare.';
 const MAX_DISCORD_MESSAGE_LENGTH = 2000;
 const LONG_REPLY_FALLBACK = 'bă, nu-ți răspund, că de m-apuc scriu kilometri.';
 
@@ -23,6 +23,7 @@ export class MentionResponderService {
   constructor(
     private readonly botConfig: BotConfigService,
     private readonly discordClient: DiscordClientService,
+    private readonly openAi: OpenAiService,
   ) {
     this.blacklistedChannelIds = new Set(
       this.botConfig.getBlacklistedChannelIds(),
@@ -179,45 +180,10 @@ export class MentionResponderService {
     userPrompt: string,
     additionalInstructions?: string,
   ): Promise<string> {
-    const apiKey = this.botConfig.getOpenAIApiKey();
-    const model = this.botConfig.getOpenAIModel();
-
-    const systemPrompt = this.buildSystemPrompt(additionalInstructions);
-
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: userPrompt },
-        ],
-      }),
+    return this.openAi.chat({
+      system: this.buildSystemPrompt(additionalInstructions),
+      user: userPrompt,
     });
-
-    if (!response.ok) {
-      const errorBody = await response.text();
-      this.logger.error(
-        `OpenAI API error: ${response.status} ${response.statusText} - ${errorBody}`,
-      );
-      throw new Error('Failed to generate response from OpenAI');
-    }
-
-    const payload = (await response.json()) as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-
-    const reply = payload.choices?.[0]?.message?.content?.trim();
-
-    if (!reply) {
-      throw new Error('OpenAI returned an empty response');
-    }
-
-    return reply;
   }
 
   private replaceMentionsWithUsernames(
@@ -298,10 +264,10 @@ export class MentionResponderService {
 
   private buildSystemPrompt(additionalInstructions?: string): string {
     if (!additionalInstructions) {
-      return BASE_SYSTEM_PROMPT;
+      return MIHNEAINATOR_PERSONA;
     }
 
-    return `${BASE_SYSTEM_PROMPT}\n\n${additionalInstructions}`;
+    return `${MIHNEAINATOR_PERSONA}\n\n${additionalInstructions}`;
   }
 
   private async tryHandleAdminComeback(
