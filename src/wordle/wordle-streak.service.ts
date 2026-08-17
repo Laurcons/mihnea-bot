@@ -66,7 +66,10 @@ export class WordleStreakService {
           },
         },
       ],
-      { upsert: true },
+      // The update above is an aggregation pipeline (an array), and Mongoose 9
+      // refuses those unless updatePipeline is set. Removing it throws at
+      // runtime, after the result has already been inserted.
+      { upsert: true, updatePipeline: true },
     );
   }
 
