@@ -3,6 +3,7 @@ import { HydratedDocument } from 'mongoose';
 
 export type DiscordUserDocument = HydratedDocument<DiscordUser>;
 
+@Schema({ _id: false })
 export class WordleStats {
   @Prop({ required: true }) lastPuzzleDay!: number;
   @Prop({ required: true }) currentStreak!: number;

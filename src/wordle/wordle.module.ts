@@ -9,6 +9,7 @@ import { WordleParserService } from './wordle-parser.service';
 import { WordleTrackerService } from './wordle-tracker.service';
 import { WordleStatsService } from './wordle-stats.service';
 import { WordleStreakInvalidatorService } from './wordle-streak-invalidator.service';
+import { WordleStreakService } from './wordle-streak.service';
 import { WordleCommentaryService } from './wordle-commentary.service';
 
 @Module({
@@ -22,6 +23,7 @@ import { WordleCommentaryService } from './wordle-commentary.service';
     WordleParserService,
     WordleTrackerService,
     WordleStatsService,
+    WordleStreakService,
     WordleStreakInvalidatorService,
     WordleCommentaryService,
   ],

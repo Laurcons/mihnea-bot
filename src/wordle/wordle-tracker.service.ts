@@ -7,8 +7,8 @@ import { DiscordClientService } from '../discord-client.service';
 import { WordleParserService } from './wordle-parser.service';
 import { ParsedWordleResult } from './types/wordle.types';
 import { WordleResult } from './models/wordle-result.schema';
-import { DiscordUser } from './models/discord-user.schema';
 import { WordleCommentaryService } from './wordle-commentary.service';
+import { WordleStreakService } from './wordle-streak.service';
 
 function isMongooseDuplicateKeyError(error: unknown): boolean {
   return (
@@ -29,10 +29,9 @@ export class WordleTrackerService implements OnModuleInit {
     private readonly botConfig: BotConfigService,
     private readonly parser: WordleParserService,
     private readonly commentary: WordleCommentaryService,
+    private readonly streaks: WordleStreakService,
     @InjectModel(WordleResult.name)
     private readonly wordleResultModel: Model<WordleResult>,
-    @InjectModel(DiscordUser.name)
-    private readonly discordUserModel: Model<DiscordUser>,
   ) {}
 
   onModuleInit(): void {
@@ -97,102 +96,6 @@ export class WordleTrackerService implements OnModuleInit {
         );
       }
     }
-  }
-
-  private async upsertUserStreak(
-    userId: string,
-    username: string,
-    gameType: string,
-    puzzleDay: number,
-  ): Promise<void> {
-    const sp = `wordleStats.${gameType}`;
-    await this.discordUserModel.findOneAndUpdate(
-      { discordId: userId },
-      [
-        {
-          $set: {
-            username,
-            [sp]: {
-              lastPuzzleDay: puzzleDay,
-              currentStreak: {
-                $cond: [
-                  { $eq: [`$${sp}.lastPuzzleDay`, puzzleDay - 1] },
-                  { $add: [{ $ifNull: [`$${sp}.currentStreak`, 0] }, 1] },
-                  1,
-                ],
-              },
-              biggestStreak: {
-                $max: [
-                  { $ifNull: [`$${sp}.biggestStreak`, 0] },
-                  {
-                    $cond: [
-                      { $eq: [`$${sp}.lastPuzzleDay`, puzzleDay - 1] },
-                      { $add: [{ $ifNull: [`$${sp}.currentStreak`, 0] }, 1] },
-                      1,
-                    ],
-                  },
-                ],
-              },
-            },
-          },
-        },
-      ],
-      { upsert: true, updatePipeline: true },
-    );
-  }
-
-  private async recalculateStreakFromHistory(
-    userId: string,
-    username: string,
-    gameType: string,
-  ): Promise<void> {
-    const cursor = this.wordleResultModel
-      .find({ userId, gameType })
-      .sort({ puzzleDay: -1 })
-      .cursor({ batchSize: 10 });
-
-    let currentStreak = 0;
-    let lastPuzzleDay: number | null = null;
-    let prevPuzzleDay: number | null = null;
-
-    try {
-      for await (const result of cursor) {
-        if (lastPuzzleDay === null) {
-          lastPuzzleDay = result.puzzleDay;
-          prevPuzzleDay = result.puzzleDay;
-          currentStreak = 1;
-        } else if (result.puzzleDay === prevPuzzleDay! - 1) {
-          currentStreak++;
-          prevPuzzleDay = result.puzzleDay;
-        } else {
-          break;
-        }
-      }
-    } finally {
-      await cursor.close();
-    }
-
-    if (lastPuzzleDay === null) return;
-
-    const sp = `wordleStats.${gameType}`;
-    await this.discordUserModel.findOneAndUpdate(
-      { discordId: userId },
-      [
-        {
-          $set: {
-            username,
-            [sp]: {
-              lastPuzzleDay,
-              currentStreak,
-              biggestStreak: {
-                $max: [{ $ifNull: [`$${sp}.biggestStreak`, 0] }, currentStreak],
-              },
-            },
-          },
-        },
-      ],
-      { upsert: true, updatePipeline: true },
-    );
   }
 
   async reevaluateMessage(messageId: string): Promise<string> {
@@ -269,13 +172,13 @@ export class WordleTrackerService implements OnModuleInit {
       const todayPuzzleDay = this.parser.getCurrentPuzzleDay(result.gameType);
 
       if (result.puzzleDay !== todayPuzzleDay) {
-        await this.recalculateStreakFromHistory(
+        await this.streaks.recomputeFromHistory(
           userId,
           username,
           result.gameType,
         );
       } else {
-        await this.upsertUserStreak(
+        await this.streaks.recordResult(
           userId,
           username,
           result.gameType,
