@@ -1,22 +1,28 @@
-import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
-
+import { Injectable, Logger } from '@nestjs/common';
+import { Cron } from '@nestjs/schedule';
 import { KickPollService } from './kick-poll.service';
+import { BotConfigService } from '../bot-config.service';
 
+/**
+ * The daily kick vote is retired. Rather than commenting the schedules out —
+ * where they rotted unreviewed, still carrying UTC-only crons that drifted an
+ * hour every summer — they stay live and are gated on KICK_POLL_ENABLED,
+ * which defaults to false. Re-enabling is an env change, not archaeology.
+ */
 @Injectable()
-export class KickPollSchedulerService implements OnModuleInit {
+export class KickPollSchedulerService {
   private readonly logger = new Logger(KickPollSchedulerService.name);
 
-  constructor(private readonly kickPollService: KickPollService) {}
+  constructor(
+    private readonly kickPollService: KickPollService,
+    private readonly botConfig: BotConfigService,
+  ) {}
 
-  async onModuleInit() {
-    // Uncomment to test on startup:
-    // await this.handleDailyPoll();
-    // await this.handlePollResult();
-  }
+  @Cron('0 18 * * *', { timeZone: 'Europe/Bucharest' })
+  async handleDailyPoll(): Promise<void> {
+    if (!this.botConfig.getIsKickPollEnabled()) return;
 
-  // @Cron('0 16 * * *')
-  async handleDailyPoll() {
-    this.logger.log('Starting daily kick poll at 18:00');
+    this.logger.log('Starting daily kick poll');
     try {
       await this.kickPollService.sendDailyPoll();
     } catch (error) {
@@ -27,9 +33,13 @@ export class KickPollSchedulerService implements OnModuleInit {
     }
   }
 
-  // @Cron('1 17 * * *')
-  async handlePollResult() {
-    this.logger.log('Processing poll result at 19:00');
+  // A minute after the poll's one-hour duration expires, so the last votes are
+  // counted. The original schedule had the same offset.
+  @Cron('1 19 * * *', { timeZone: 'Europe/Bucharest' })
+  async handlePollResult(): Promise<void> {
+    if (!this.botConfig.getIsKickPollEnabled()) return;
+
+    this.logger.log('Processing kick poll result');
     try {
       await this.kickPollService.processPollResult();
     } catch (error) {

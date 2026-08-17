@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
+import { BotConfigService } from './bot-config.service';
 
 dayjs.extend(utc);
 dayjs.extend(timezone);
@@ -13,7 +14,15 @@ async function bootstrap() {
   const app = await NestFactory.createApplicationContext(AppModule);
 
   logger.log('Discord bot application started');
-  logger.log('Kick poll at 18:00, results processed at 19:00');
+
+  // Reported from config rather than hardcoded: this line claimed the kick
+  // poll ran daily for as long as its schedules sat commented out.
+  const kickPollEnabled = app.get(BotConfigService).getIsKickPollEnabled();
+  logger.log(
+    kickPollEnabled
+      ? 'Kick poll enabled: poll at 18:00, results at 19:01 (Europe/Bucharest)'
+      : 'Kick poll disabled (set KICK_POLL_ENABLED=true to enable)',
+  );
 
   // Keep the application running
   const shutdown = async () => {

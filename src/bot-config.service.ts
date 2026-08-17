@@ -81,6 +81,15 @@ export class BotConfigService {
     return this.configService.get<string>('HOSTILE_REACTION_BOT_ID') ?? null;
   }
 
+  /**
+   * The daily kick vote is retired but kept for possible revival. Disabled by
+   * default so its schedules stay visible and reviewable in code, rather than
+   * rotting behind commented-out decorators.
+   */
+  getIsKickPollEnabled(): boolean {
+    return this.configService.get<string>('KICK_POLL_ENABLED') === 'true';
+  }
+
   getIsWordlePuzzleDayIgnored(): boolean {
     return (
       this.configService.get<string>('WORDLE_IGNORE_PUZZLE_DAY') === 'true'

@@ -46,7 +46,7 @@ Posting a result for today's puzzle grants access to a private per-game discussi
 
 ### Daily Kick Vote — currently disabled
 
-> **Not running.** The schedules in [kick-poll-scheduler.service.ts](src/kick-poll/kick-poll-scheduler.service.ts) are commented out. The code is kept because the feature may be re-enabled. Everything below describes how it behaves when switched on.
+> **Not running.** Retired, but kept for possible revival. Set `KICK_POLL_ENABLED=true` to bring it back — the schedules are live in code and gated on that flag, so they stay reviewable. Everything below describes how it behaves when switched on.
 
 - Sends a daily poll at 18:00 to nominate a random user for "kicking"
 - Users opt-in to the kickable list via `/mihneainator kickvote optin`
@@ -149,6 +149,7 @@ The application uses `@nestjs/config` and `dotenv` to load environment variables
 - `DISCORD_WORDLE_CHANNEL_ID`: Channel the bot watches for puzzle results. Wordle tracking is inactive without it
 - `WORDLE_IGNORE_PUZZLE_DAY`: Set to `true` to accept results for any puzzle day, not just today's. For debugging — it disables the guard for live messages too
 - `HOSTILE_REACTION_BOT_ID`: User ID of a bot whose 🖕 reactions should be removed
+- `KICK_POLL_ENABLED`: Set to `true` to re-enable the retired daily kick vote (default: disabled)
 - `DISCORD_BLACKLISTED_CHANNEL_IDS`: Comma-separated list of channel IDs where the bot will only react with 👎
 - `DISCORD_ALLOWED_BOT_CHANNEL_IDS`: Comma-separated list of channel IDs where the bot can respond to other bots
 - `DISCORD_ADMIN_USER_ID`: Discord user ID of the admin who can use the comeback feature
