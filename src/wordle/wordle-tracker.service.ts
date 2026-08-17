@@ -11,6 +11,10 @@ import { WordleCommentaryService } from './wordle-commentary.service';
 import { WordleStreakService } from './wordle-streak.service';
 import { WordleChannelAccessService } from './wordle-channel-access.service';
 
+function describeError(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
+
 function isMongooseDuplicateKeyError(error: unknown): boolean {
   return (
     typeof error === 'object' &&
@@ -48,7 +52,15 @@ export class WordleTrackerService implements OnModuleInit {
     if (message.channelId !== this.wordleChannelId) return;
 
     const results = this.parser.parse(message.content, message.createdAt);
-    if (results.length === 0) return;
+    if (results.length === 0) {
+      if (this.parser.looksLikeUnparsedResult(message.content)) {
+        this.logger.warn(
+          `Message looks like a result but parsed to nothing, from ` +
+            `${message.author.username} (messageId=${message.id}):\n${message.content}`,
+        );
+      }
+      return;
+    }
 
     const failures: string[] = [];
     const successfulResults: ParsedWordleResult[] = [];
@@ -159,6 +171,11 @@ export class WordleTrackerService implements OnModuleInit {
   ): Promise<string | null> {
     const { id: userId, username } = message.author;
 
+    // Storing the result and reacting to it are the only things that decide
+    // what the user is told. Everything after is post-processing: it must be
+    // logged loudly but must never claim the result was lost, because it
+    // wasn't. Conflating the two is how a streak-update crash once told users
+    // their result had failed while it sat safely in the database.
     try {
       await this.wordleResultModel.create({
         userId,
@@ -172,11 +189,28 @@ export class WordleTrackerService implements OnModuleInit {
         scoreMax: result.scoreMax,
         attempts: result.attempts,
       });
+    } catch (error: unknown) {
+      if (isMongooseDuplicateKeyError(error)) {
+        this.logger.warn(
+          `Duplicate result ignored: userId=${userId} gameType=${result.gameType} day=${result.puzzleDay}`,
+        );
+        await this.react(message, '👎');
+        return 'ai trimis deja rezultatu aista';
+      }
 
-      this.logger.log(
-        `Saved result: userId=${userId} gameType=${result.gameType} day=${result.puzzleDay}`,
+      this.logger.error(
+        `Failed to save wordle result: ${describeError(error)} ` +
+          `(userId=${userId} gameType=${result.gameType} day=${result.puzzleDay})`,
       );
+      await this.react(message, '😵');
+      return 'mi-o crepat mațu, zi-i lu bubu să vie';
+    }
 
+    this.logger.log(
+      `Saved result: userId=${userId} gameType=${result.gameType} day=${result.puzzleDay}`,
+    );
+
+    try {
       const todayPuzzleDay = this.parser.getCurrentPuzzleDay(result.gameType);
 
       if (result.puzzleDay !== todayPuzzleDay) {
@@ -192,30 +226,32 @@ export class WordleTrackerService implements OnModuleInit {
           result.gameType,
           result.puzzleDay,
         );
-      }
 
-      // Only today's puzzle unlocks the discussion channel. A late submission
-      // for yesterday still counts for the streak but must not grant access,
-      // and grant() swallows its own errors so Discord cannot fail the save.
-      if (result.puzzleDay === todayPuzzleDay) {
+        // Only today's puzzle unlocks the discussion channel. A late
+        // submission for yesterday still counts for the streak but must not
+        // grant access.
         void this.channelAccess.grant(userId, result.gameType);
       }
-
-      await message.react('✅');
-      return null;
     } catch (error: unknown) {
-      if (isMongooseDuplicateKeyError(error)) {
-        this.logger.warn(
-          `Duplicate result ignored: userId=${userId} gameType=${result.gameType} day=${result.puzzleDay}`,
-        );
-        await message.react('👎');
-        return 'ai trimis deja rezultatu aista';
-      } else {
-        const msg = error instanceof Error ? error.message : String(error);
-        this.logger.error(`Failed to save wordle result: ${msg}`);
-        await message.react('😵');
-        return 'mi-o crepat mațu, zi-i lu bubu să vie';
-      }
+      this.logger.error(
+        `Result stored but post-processing failed: ${describeError(error)} ` +
+          `(userId=${userId} gameType=${result.gameType} day=${result.puzzleDay}). ` +
+          'Streaks can be rebuilt with: npm run repair:streaks',
+      );
+    }
+
+    await this.react(message, '✅');
+    return null;
+  }
+
+  /** A reaction failing must never be mistaken for the result failing. */
+  private async react(message: Message, emoji: string): Promise<void> {
+    try {
+      await message.react(emoji);
+    } catch (error: unknown) {
+      this.logger.warn(
+        `Could not react with ${emoji}: ${describeError(error)}`,
+      );
     }
   }
 }

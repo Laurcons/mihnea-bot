@@ -1,7 +1,10 @@
 import dayjs from 'dayjs';
 import utc from 'dayjs/plugin/utc';
 import timezone from 'dayjs/plugin/timezone';
-import { WordleParserService } from './wordle-parser.service';
+import {
+  WordleParserService,
+  WORDLE_GAME_TYPES,
+} from './wordle-parser.service';
 
 // main.ts installs these at bootstrap; the parser reads "today" through them.
 dayjs.extend(utc);
@@ -215,6 +218,60 @@ describe('WordleParserService', () => {
         jest.useRealTimers();
       }
     });
+  });
+
+  // A game changing its share format used to be indistinguishable from
+  // ordinary chatter: the message was dropped in silence.
+  describe('looksLikeUnparsedResult', () => {
+    it.each([
+      ['Score: 100/100 (spot on)\nMagnitudle - Daily Estimation Game'],
+      ['#Angle #1517 9/9'],
+      ['Wordle 1749 7/6'],
+    ])('flags %j as a probable result', (content) => {
+      expect(parser.looksLikeUnparsedResult(content)).toBe(true);
+    });
+
+    it.each([
+      ['salut ce faceti'],
+      ['ma duc sa joc wordle mai tarziu'], // a game name, but no number
+      ['am luat 5 la mate'], // a number, but no game name
+      [''],
+    ])('does not flag %j', (content) => {
+      expect(parser.looksLikeUnparsedResult(content)).toBe(false);
+    });
+
+    // One representative header per game. Guards against adding a game and
+    // forgetting its probe token — which would silently reinstate the
+    // drop-in-silence behaviour for that game only.
+    const HEADERS: Record<string, string> = {
+      Wordle: 'Wordle 1749 4/6',
+      RoWordle: '🇷🇴 Wordle-RO 1553 4/6',
+      QuordleClassic: '🙂 Daily Quordle 1530',
+      QuordleChill: '😎 Daily Chill 613',
+      QuordleExtreme: '🥵 Daily Extreme 613',
+      Doctordle: 'Doctordle #261',
+      Letterle: 'Letterle 5/26',
+      OwdleHero: 'Owdle Hero 2026-04-03 ✅ (3 tries)',
+      OwdleConversation: 'Owdle Conversation 2026-04-03 ✅ (3 tries)',
+      Nerdle: 'nerdlegame 1538 3/6',
+      Polygonle: '#Polygonle 1350 3/6.',
+      PolygonleMini: '#PolygonleMini 1104 3/6.',
+      Magnitudle: 'Magnitudle - Daily Estimation Game\nScore: 88/100',
+      Angle: '#Angle #1517 4/4',
+    };
+
+    it('has a sample header for every registered game type', () => {
+      expect(Object.keys(HEADERS).sort()).toEqual(
+        [...WORDLE_GAME_TYPES].sort(),
+      );
+    });
+
+    it.each(Object.entries(HEADERS))(
+      'flags a %s header',
+      (_gameType, header) => {
+        expect(parser.looksLikeUnparsedResult(header)).toBe(true);
+      },
+    );
   });
 
   describe('other games', () => {

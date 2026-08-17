@@ -207,6 +207,18 @@ export const WORDLE_GAME_TYPES: string[] = [
   ...new Set(GAME_DEFINITIONS.map((d) => d.gameType)),
 ];
 
+/**
+ * Distinctive name tokens for the supported games, used only to notice
+ * messages that look like a result but produced nothing. A game changing its
+ * share format is otherwise indistinguishable from ordinary chatter: the
+ * message is dropped in silence, and the first sign of trouble is a player
+ * asking why their streak broke.
+ *
+ * Add a token when adding a game. A missing one costs a warning, not a parse.
+ */
+const GAME_NAME_PROBE =
+  /\b(wordle|quordle|daily\s+chill|daily\s+extreme|nerdle|letterle|doctordle|owdle|polygonle|magnitudle|angle)/i;
+
 function toRomanianDate(date: Date): string {
   return dayjs(date).tz('Europe/Bucharest').format('YYYY-MM-DD');
 }
@@ -230,6 +242,16 @@ export class WordleParserService {
     const definition = GAME_DEFINITIONS.find((d) => d.gameType === gameType);
     if (!definition) throw new Error(`Incorrect game type: ${gameType}`);
     return calculateTodayPuzzleDay(definition.anchor);
+  }
+
+  /**
+   * Whether a message that parsed to nothing nonetheless looks like it was
+   * meant to be a result, and so is worth flagging rather than ignoring.
+   * Requires a digit as well as a game name, since every supported header
+   * carries a number and plain chatter usually does not.
+   */
+  looksLikeUnparsedResult(content: string): boolean {
+    return GAME_NAME_PROBE.test(content) && /\d/.test(content);
   }
 
   isCurrentPuzzle(gameType: string, puzzleDay: number): boolean {
