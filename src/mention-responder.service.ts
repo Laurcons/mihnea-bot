@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { Message, TextBasedChannel } from 'discord.js';
 import { BotConfigService } from './bot-config.service';
 import { DiscordClientService } from './discord-client.service';
@@ -13,7 +13,7 @@ const MAX_DISCORD_MESSAGE_LENGTH = 2000;
 const LONG_REPLY_FALLBACK = 'bă, nu-ți răspund, că de m-apuc scriu kilometri.';
 
 @Injectable()
-export class MentionResponderService {
+export class MentionResponderService implements OnModuleInit {
   private readonly logger = new Logger(MentionResponderService.name);
   private readonly blacklistedChannelIds: Set<string>;
   private readonly botAllowedChannelIds: Set<string>;
@@ -32,6 +32,12 @@ export class MentionResponderService {
       this.botConfig.getBotAllowedChannelIds(),
     );
     this.adminUserId = this.botConfig.getAdminUserId();
+  }
+
+  // Registered here rather than in the constructor, matching every other
+  // service: a constructor that subscribes to events starts doing work before
+  // the container has finished wiring it up.
+  onModuleInit(): void {
     this.discordClient.onMessage((message) => void this.handleMessage(message));
   }
 
@@ -73,7 +79,7 @@ export class MentionResponderService {
         return;
       }
 
-      await this.respondToMention(message, channel, userPrompt);
+      await this.respondWithPrompt(message, channel, userPrompt);
     } finally {
       this.usersBeingProcessed.delete(userId);
     }
@@ -158,14 +164,6 @@ export class MentionResponderService {
       this.logger.warn(`Unable to fetch full message content: ${messageText}`);
       return '';
     }
-  }
-
-  private async respondToMention(
-    message: Message,
-    channel: TypingCapableChannel,
-    userPrompt: string,
-  ): Promise<void> {
-    await this.respondWithPrompt(message, channel, userPrompt);
   }
 
   private normalizeReplyLength(reply: string): string {
@@ -388,9 +386,11 @@ export class MentionResponderService {
     );
     const mentionRegex = new RegExp(`<@!?${botUserId}>`, 'g');
     const prompt = contentWithNames.replace(mentionRegex, '').trim();
-    const fallback = fullContent.trim();
 
-    return prompt || (fallback ? fallback : null);
+    // No fallback to the raw content: an empty prompt means the message was
+    // nothing but mentions, so falling back sent the literal "<@1234>" to
+    // OpenAI and made the caller's "mention without text" warning unreachable.
+    return prompt || null;
   }
 
   private buildAdminInstructions(

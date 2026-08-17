@@ -111,13 +111,26 @@ export class KickPollService {
       return;
     }
 
+    // Cleared no matter how this exits. Previously an announcement that threw
+    // after a successful kick left the poll active, so the next run would
+    // process it again and kick the same person twice.
+    try {
+      await this.countAndAct(activePoll, channel);
+    } finally {
+      await this.kickPollData.clearActivePoll();
+    }
+  }
+
+  private async countAndAct(
+    activePoll: ActivePoll,
+    channel: TextChannel,
+  ): Promise<void> {
     // Fetch the poll message
     let pollMessage: Message;
     try {
       pollMessage = await channel.messages.fetch(activePoll.messageId);
     } catch (error) {
       this.logger.error(`Could not fetch poll message: ${error}`);
-      await this.kickPollData.clearActivePoll();
       return;
     }
 
@@ -125,7 +138,6 @@ export class KickPollService {
     const poll = pollMessage.poll;
     if (!poll) {
       this.logger.error('Message does not have a poll');
-      await this.kickPollData.clearActivePoll();
       return;
     }
 
@@ -188,9 +200,6 @@ export class KickPollService {
 
       this.logger.log(`${activePoll.targetUsername} was spared by the vote`);
     }
-
-    // Clear active poll
-    await this.kickPollData.clearActivePoll();
   }
 
   private async getChannel(): Promise<TextChannel | null> {
