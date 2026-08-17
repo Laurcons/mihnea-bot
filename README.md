@@ -1,10 +1,53 @@
 # Mihnea Poller
 
-A NestJS CLI application that acts as a Discord bot with daily kick votes and AI-powered responses.
+A NestJS Discord bot that tracks daily puzzle-game results, roasts people who @mention it, and (when enabled) runs a daily kick vote.
 
 ## Features
 
-### Daily Kick Vote
+### Wordle Tracking
+
+The largest feature. The bot watches a dedicated channel and records everyone's daily puzzle results.
+
+- Parses results for 14 games from their share text: Wordle, Wordle-RO, the three Quordle variants, Doctordle, Letterle, the two Owdle variants, Nerdle, Polygonle, Polygonle Mini, Magnitudle and Angle
+- Reacts ✅ on success, 👎 on a duplicate, 😵 on a storage failure
+- Rejects results that are not for today's puzzle, with a two-hour grace period after midnight
+- Tracks per-game streaks, viewable with `/mihneainator wordle streaks`
+- Occasionally (1% of results) posts AI commentary on a result
+- Unlocks a per-game discussion channel — see below
+
+Adding a game is normally a single entry in `GAME_DEFINITIONS` in [wordle-parser.service.ts](src/wordle/wordle-parser.service.ts).
+
+### Today's-Puzzle Channels
+
+Posting a result for today's puzzle grants access to a private per-game discussion channel, revoked nightly at midnight.
+
+- Channels are matched by name: `#todays-<lowercased game type>`, e.g. `#todays-magnitudle`, `#todays-polygonlemini`
+- **The bot never creates channels.** A game without a matching channel is a supported configuration, not an error — check the boot log to see which were found
+- Each channel must deny `ViewChannel` to `@everyone`, and the bot needs **Manage Permissions** on it
+- The nightly sweep removes all *member* overwrites. To give someone standing access, use a **role** overwrite — those are never touched. Users with Administrator bypass overwrites entirely and are unaffected
+
+### Mention Responder (ChatGPT Integration)
+- Responds to @mentions using OpenAI's ChatGPT API
+- Bot has a persona called "Mihneainatorul" - a parody character that roasts users with creative insults
+- Simulates typing while generating responses for a natural feel
+- Rate limiting: one request per user at a time (prevents spam)
+
+### Channel Controls
+- **Blacklisted channels**: Bot reacts with 👎 instead of responding in specified channels
+- **Bot-allowed channels**: Allows the bot to respond to other bots in whitelisted channels
+
+### Admin Comeback Feature
+- Admins can reply to any message while mentioning the bot
+- The bot will then roast the author of the referenced message
+- Admin can include instructions in their message to guide the response
+
+### Reaction Defense
+- Removes 🖕 reactions added by a specific hostile bot (`HOSTILE_REACTION_BOT_ID`)
+
+### Daily Kick Vote — currently disabled
+
+> **Not running.** The schedules in [kick-poll-scheduler.service.ts](src/kick-poll/kick-poll-scheduler.service.ts) are commented out. The code is kept because the feature may be re-enabled. Everything below describes how it behaves when switched on.
+
 - Sends a daily poll at 18:00 to nominate a random user for "kicking"
 - Users opt-in to the kickable list via `/mihneainator kickvote optin`
 - AI generates a dramatic, mock-serious accusation about an innocent activity
@@ -30,13 +73,21 @@ A NestJS CLI application that acts as a Discord bot with daily kick votes and AI
 
 ## Slash Commands
 
-- `/mihneainator kickvote optin` - Opt in to the daily kick vote
-- `/mihneainator kickvote optout` - Opt out from the daily kick vote
+- `/mihneainator wordle streaks [gametype]` - Show everyone's streak for a game (default: Wordle)
+- `/mihneainator wordle reevaluate <messageid>` - Re-parse and re-store a wordle message. Use this to recover a result the bot missed
+- `/mihneainator kickvote optin` - Opt in to the daily kick vote *(feature disabled)*
+- `/mihneainator kickvote optout` - Opt out from the daily kick vote *(feature disabled)*
+
+## Scripts
+
+- `npm run repair:streaks` - Recompute every user's streaks from stored results. Authoritative: it overwrites stored values, so it corrects inflated ones too. Run it after any incident that interrupted streak updates
+- `npm run invite` - Print the bot invite URL with the required permissions
 
 ## Prerequisites
 
 - Node.js (v18 or higher)
 - npm
+- **MongoDB** - stores wordle results and user streaks
 - A Discord bot token and application client ID
 - Discord server (guild) ID and channel ID
 - OpenAI API key
@@ -57,6 +108,7 @@ DISCORD_CLIENT_ID=your_discord_application_client_id_here
 DISCORD_GUILD_ID=your_discord_guild_id_here
 DISCORD_CHANNEL_ID=your_discord_channel_id_here
 OPENAI_API_KEY=your_openai_api_key_here
+MONGODB_URL=mongodb://localhost:27017/mihnea-poller
 ```
 
 3. Build the project:
@@ -88,11 +140,15 @@ The application uses `@nestjs/config` and `dotenv` to load environment variables
 - `DISCORD_GUILD_ID`: The Discord server (guild) ID where the bot should operate
 - `DISCORD_CHANNEL_ID`: The channel ID where polls and announcements are sent
 - `OPENAI_API_KEY`: Your OpenAI API key for ChatGPT integration
+- `MONGODB_URL`: MongoDB connection string. The app will not start without it
 
 ### Optional environment variables
 
 - `OPENAI_MODEL`: The OpenAI model to use (default: `gpt-4o-mini`)
 - `DATA_DIRECTORY`: Directory for data files (default: `./data`)
+- `DISCORD_WORDLE_CHANNEL_ID`: Channel the bot watches for puzzle results. Wordle tracking is inactive without it
+- `WORDLE_IGNORE_PUZZLE_DAY`: Set to `true` to accept results for any puzzle day, not just today's. For debugging — it disables the guard for live messages too
+- `HOSTILE_REACTION_BOT_ID`: User ID of a bot whose 🖕 reactions should be removed
 - `DISCORD_BLACKLISTED_CHANNEL_IDS`: Comma-separated list of channel IDs where the bot will only react with 👎
 - `DISCORD_ALLOWED_BOT_CHANNEL_IDS`: Comma-separated list of channel IDs where the bot can respond to other bots
 - `DISCORD_ADMIN_USER_ID`: Discord user ID of the admin who can use the comeback feature
@@ -154,8 +210,14 @@ The application uses `@nestjs/config` and `dotenv` to load environment variables
    - Send Messages
    - View Channels
    - Read Message History
+   - Add Reactions
    - **Kick Members** (required for kick vote)
    - **Create Instant Invite** (required for rejoin links)
+   - **Manage Roles** (required for the `#todays-*` channels)
+
+   `npm run invite` generates this URL for you.
+
+   Prefer granting **Manage Permissions** on each `#todays-*` channel individually over the server-wide **Manage Roles** bit — it confines the privilege to those channels. Changing bot permissions never requires re-inviting: edit the bot's role in Server Settings, or add a channel overwrite.
 4. Copy the generated URL at the bottom
 5. Open the URL in your browser
 6. Select the server where you want to add the bot
@@ -211,9 +273,17 @@ docker run \
 
 ## Data Storage
 
-The bot stores data in JSON files under the `data/` directory:
+Two stores, for historical reasons:
 
-- `data/kick-poll-data.json`: Contains the kickable users list, active poll state, and last poll result
+**MongoDB** — everything wordle:
+- `wordleresults`: one document per (user, game, puzzle day), uniquely indexed on that triple
+- `discordusers`: per-user, per-game streak stats
+- `migrationmarkers`: records that a one-off backfill has run, so it does not repeat on the next boot
+
+**JSON file** under `data/` — kick poll only:
+- `data/kick-poll-data.json`: kickable users, active poll state, last poll result
+
+The `data/` directory must be a mounted volume, or its contents are lost on redeploy.
 
 ## License
 
