@@ -5,6 +5,11 @@ import {
   WordleResultSchema,
 } from './models/wordle-result.schema';
 import { DiscordUser, DiscordUserSchema } from './models/discord-user.schema';
+import {
+  MigrationMarker,
+  MigrationMarkerSchema,
+} from './models/migration-marker.schema';
+import { MagnitudleBackfillService } from './magnitudle-backfill.service';
 import { WordleParserService } from './wordle-parser.service';
 import { WordleTrackerService } from './wordle-tracker.service';
 import { WordleStatsService } from './wordle-stats.service';
@@ -17,6 +22,7 @@ import { WordleCommentaryService } from './wordle-commentary.service';
     MongooseModule.forFeature([
       { name: WordleResult.name, schema: WordleResultSchema },
       { name: DiscordUser.name, schema: DiscordUserSchema },
+      { name: MigrationMarker.name, schema: MigrationMarkerSchema },
     ]),
   ],
   providers: [
@@ -26,6 +32,7 @@ import { WordleCommentaryService } from './wordle-commentary.service';
     WordleStreakService,
     WordleStreakInvalidatorService,
     WordleCommentaryService,
+    MagnitudleBackfillService,
   ],
   exports: [WordleStatsService, WordleTrackerService],
 })

@@ -31,6 +31,8 @@ type ReactionHandler = (
 export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(DiscordClientService.name);
   private readonly client: Client;
+  private readonly ready: Promise<void>;
+  private markReady!: () => void;
 
   constructor(private readonly botConfig: BotConfigService) {
     this.client = new Client({
@@ -43,6 +45,10 @@ export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
       ],
       partials: [Partials.Channel, Partials.Message, Partials.Reaction],
     });
+
+    this.ready = new Promise<void>((resolve) => {
+      this.markReady = resolve;
+    });
   }
 
   async onModuleInit(): Promise<void> {
@@ -52,9 +58,29 @@ export class DiscordClientService implements OnModuleInit, OnModuleDestroy {
       if (this.client.user) {
         this.logger.log(`Discord bot logged in as ${this.client.user.tag}`);
       }
+      this.markReady();
     });
 
     await this.client.login(token);
+  }
+
+  /**
+   * Resolves once the gateway is ready. login() resolving is not enough —
+   * guild and channel caches are still empty at that point — so anything that
+   * touches Discord at startup (rather than in response to a user) has to wait
+   * on this.
+   */
+  async whenReady(timeoutMs = 60_000): Promise<boolean> {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<false>((resolve) => {
+      timer = setTimeout(() => resolve(false), timeoutMs);
+    });
+
+    try {
+      return await Promise.race([this.ready.then(() => true), timeout]);
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   async onModuleDestroy(): Promise<void> {
