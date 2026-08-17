@@ -34,10 +34,21 @@ interface WordleGameDefinition {
 }
 
 /**
- * Some games append their share link to the last grid line rather than putting
- * it on its own line. Stripped so it never lands in the stored grid.
+ * Decorations some games hang off the end of a grid line rather than putting
+ * on their own: a share link, or an annotation like " : 1° off" on an Angle
+ * loss. Stripped so they never land in the stored grid.
+ *
+ * Only ever applied to a line the game's own emojiLineRegex already accepted,
+ * so these cannot fire on unrelated content.
  */
-const TRAILING_URL = /\s*https?:\/\/\S+$/;
+const ATTEMPT_DECORATIONS = [/\s*https?:\/\/\S+$/, /\s*:\s.*$/];
+
+function cleanAttempt(line: string): string {
+  return ATTEMPT_DECORATIONS.reduce(
+    (acc, pattern) => acc.replace(pattern, ''),
+    line,
+  ).trim();
+}
 
 // Puzzle #1 launch dates used as anchors.
 // Verify/update puzzleDay values if the game ever resets or skips numbers.
@@ -176,6 +187,20 @@ const GAME_DEFINITIONS: WordleGameDefinition[] = [
     maxScore: 100,
     anchor: { date: '2026-01-01', puzzleDay: 1 },
   },
+  {
+    gameType: 'Angle',
+    headerRegex: /^#Angle\s+#(\d+)\s+([1-4X])\/4$/im,
+    // The arrows are matched with an optional variation selector because
+    // clients are inconsistent about emitting it. A loss appends " : 1° off"
+    // to the grid, which cleanAttempt strips back off.
+    emojiLineRegex: /^(?:[⬆⬇]️?|🎉)+(?:\s*:\s.*)?$/u,
+    extractPuzzleDay: (m) => parseInt(m[1], 10),
+    extractTries: (m) => (m[2] === 'X' ? null : parseInt(m[2], 10)),
+    maxTries: 4,
+    // Derived from seven consecutive days of results: 1511 on 2026-08-10
+    // through 1517 on 2026-08-16.
+    anchor: { date: '2026-08-16', puzzleDay: 1517 },
+  },
 ];
 
 export const WORDLE_GAME_TYPES: string[] = [
@@ -268,7 +293,7 @@ export class WordleParserService {
         const attempts: string[] = [];
         let j = triesStart;
         while (j < lines.length && definition.emojiLineRegex.test(lines[j])) {
-          attempts.push(lines[j].replace(TRAILING_URL, ''));
+          attempts.push(cleanAttempt(lines[j]));
           j++;
         }
 

@@ -151,6 +151,72 @@ describe('WordleParserService', () => {
     });
   });
 
+  describe('Angle', () => {
+    const postedAt = new Date('2026-08-16T12:00:00Z');
+
+    it('parses a win with the share link on its own line', () => {
+      const content = [
+        '#Angle #1517 4/4',
+        '⬆️⬇️⬆️🎉',
+        'https://www.angle.wtf/',
+      ].join('\n');
+
+      expect(parser.parse(content, postedAt)).toEqual([
+        {
+          gameType: 'Angle',
+          puzzleDay: 1517,
+          tries: 4,
+          maxTries: 4,
+          score: null,
+          scoreMax: null,
+          attempts: ['⬆️⬇️⬆️🎉'],
+        },
+      ]);
+    });
+
+    it('parses a first-guess win', () => {
+      const [result] = parser.parse('#Angle #1511 1/4\n🎉', postedAt);
+
+      expect(result.tries).toBe(1);
+      expect(result.attempts).toEqual(['🎉']);
+    });
+
+    // A loss appends " : 1° off" to the grid line, which would otherwise stop
+    // the line matching and drop the grid entirely.
+    it('parses a loss and strips the degrees-off annotation', () => {
+      const content = ['#Angle #1514 X/4', '⬇️⬇️⬇️⬆️ : 1° off'].join('\n');
+
+      const [result] = parser.parse(content, postedAt);
+
+      expect(result.tries).toBeNull();
+      expect(result.puzzleDay).toBe(1514);
+      expect(result.attempts).toEqual(['⬇️⬇️⬇️⬆️']);
+    });
+
+    it('accepts arrows without the variation selector', () => {
+      const [result] = parser.parse('#Angle #1516 3/4\n⬆⬇🎉', postedAt);
+
+      expect(result.tries).toBe(3);
+      expect(result.attempts).toHaveLength(1);
+    });
+
+    // Anchor sanity. Time is frozen because getCurrentPuzzleDay reads the
+    // real clock, which would make this pass today and fail tomorrow.
+    it.each([
+      ['2026-08-10', 1511],
+      ['2026-08-16', 1517],
+      ['2026-08-17', 1518],
+    ])('reports puzzle %s as #%i', (date, expected) => {
+      jest.useFakeTimers().setSystemTime(new Date(`${date}T12:00:00Z`));
+
+      try {
+        expect(parser.getCurrentPuzzleDay('Angle')).toBe(expected);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+  });
+
   describe('other games', () => {
     const postedAt = new Date('2026-04-03T12:00:00Z');
 
